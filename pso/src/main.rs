@@ -1,6 +1,4 @@
-pub mod particle;
-
-use particle::Particle;
+use pso::particle::Particle;
 fn main() {
     let p_bounds : Vec<(f64,f64)> = vec![(-10., 10.), (-10., 10.)];
     let v_bounds : Vec<(f64,f64)> = vec![(-1., 1.), (-1., 1.)];

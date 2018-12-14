@@ -10,26 +10,10 @@ use rand::distributions::uniform::SampleUniform;
 ///! particle should reflect when attempting to move beyond a boundary or
 ///! stay put.
 #[derive(Debug, Clone)]
-struct Position<T: Clone + SampleUniform> {
+pub struct Position<T: Clone + SampleUniform> {
     coords: Vec<T>,
     bounds: Vec<(T,T)>,
     reflect: bool,
-}
-
-///! Represents the velocity of a particle. Each coordinate component of the
-///! particle has its own speed and direction -- collectively these make up
-///! the particle's velocity. All velocities are clamped.
-#[derive(Debug, Clone)]
-pub struct Velocity {
-    velocities: Vec<f64>,
-    bounds: Vec<(f64,f64)>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Particle<T: Clone + SampleUniform> {
-    position: Position<T>,
-    pbest_pos: Position<T>,
-    velocity: Velocity,
 }
 
 impl<T: Clone + SampleUniform> Position<T> {
@@ -44,6 +28,15 @@ impl<T: Clone + SampleUniform> Position<T> {
     }
 }
 
+///! Represents the velocity of a particle. Each coordinate component of the
+///! particle has its own speed and direction -- collectively these make up
+///! the particle's velocity. All velocities are clamped.
+#[derive(Debug, Clone)]
+pub struct Velocity {
+    velocities: Vec<f64>,
+    bounds: Vec<(f64,f64)>,
+}
+
 impl Velocity {
     pub fn new(bounds: Vec<(f64,f64)>) -> Velocity{
         let mut rng = thread_rng();
@@ -54,6 +47,13 @@ impl Velocity {
         }
         Velocity { velocities: initial_velocities, bounds: bounds }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Particle<T: Clone + SampleUniform> {
+    position: Position<T>,
+    pbest_pos: Position<T>,
+    velocity: Velocity,
 }
 
 impl<T: Clone + SampleUniform> Particle<T> {
@@ -67,3 +67,4 @@ impl<T: Clone + SampleUniform> Particle<T> {
     }
     
 }
+
