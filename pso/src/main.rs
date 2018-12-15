@@ -1,7 +1,8 @@
-use pso::particle::{Particle,Position};
+use pso::pso::particle::Particle;
+use pso::pso::position::Position;
 
 fn square(p: &Position<f64>) -> f64 {
-    p.get_coordinates().iter().map(|x| x*x).fold(0., |acc, x| acc + x)
+    p.coordinates().iter().map(|x| x*x).fold(0., |acc, x| acc + x)
 }
 
 fn main() {

@@ -1,21 +1,11 @@
-use rand::{Rng,thread_rng};
+use std::ops::{Add, AddAssign};
+
+use rand::{Rng, thread_rng};
 use rand::distributions::Uniform;
 use rand::distributions::uniform::SampleUniform;
 
-use std::ops::{Add,AddAssign};
-
-///! Represents the position of a particle. A position does not necessarily
-///! need to be a numeric value. A position object has a current coordinate,
-///! represented by `coords`, a restriction on the min and max values allowed
-///! for a respective coordinate, given by the respective element of `bounds`,
-///! and a reflection property, given by `reflect`, which specifies whether a
-///! particle should reflect when attempting to move beyond a boundary or
-///! stay put. All particles must have a fitness function which is a mapping
-///! f: Position -> f64
-#[derive(Debug, Clone)]
-pub struct Position<T: AddAssign + Add<Output = T> + Clone + SampleUniform> {
-    coordinates: Vec<T>,
-}
+use crate::pso::position::Position;
+use crate::pso::velocity::Velocity;
 
 #[derive(Debug, Clone)]
 pub struct Particle<T, F>
@@ -26,13 +16,6 @@ pub struct Particle<T, F>
     fitness: F,
 }
 
-///! Represents the velocity of a particle. Each coordinate component of the
-///! particle has its own speed and direction -- collectively these make up
-///! the particle's velocity. All velocities are clamped.
-#[derive(Debug, Clone)]
-pub struct Velocity<T> where T: AddAssign + Add<Output = T> + Clone + SampleUniform {
-    velocities: Vec<T>,
-}
 
 #[derive(Debug)]
 pub struct ParticleUpdater<T>
@@ -44,41 +27,6 @@ pub struct ParticleUpdater<T>
     velocity_bounds: Vec<(T,T)>,
     reflect: bool,
 }
-
-impl<T: AddAssign + Add<Output = T> + Clone + SampleUniform> Position<T> {
-    pub fn new(bounds: &Vec<(T,T)>) -> Position<T> {
-        let mut rng = thread_rng();
-        let mut initial_pos = Vec::new();
-        for bound in bounds.iter() {
-            let p_dist = Uniform::new(&bound.0, &bound.1);
-            initial_pos.push(rng.sample(p_dist));
-        }
-        Position { coordinates: initial_pos, }
-    }
-
-    pub fn get_coordinates(&self) -> &Vec<T> { &self.coordinates }
-}
-
-
-impl<T> Velocity<T>
-    where T: AddAssign + Add<Output = T> + Clone + SampleUniform {
-    pub fn new(bounds: &Vec<(T,T)>) -> Velocity<T> {
-        let mut rng = thread_rng();
-        let mut initial_velocities = Vec::new();
-        for bound in bounds.iter() {
-            let v_dist = Uniform::new(&bound.0, &bound.1);
-            initial_velocities.push(rng.sample(v_dist));
-        }
-        Velocity { velocities: initial_velocities, }
-    }
-
-    pub fn from_vec(velocities: Vec<T>) -> Velocity<T> {
-        Velocity { velocities: velocities, }
-    }
-
-    pub fn get_velocities(&self) -> &Vec<T> { &self.velocities }
-}
-
 
 impl<T, F> Particle<T, F>
     where T: AddAssign + Add<Output = T> + Clone + SampleUniform, F: Fn(&Position<T>) -> f64 {
@@ -93,8 +41,8 @@ impl<T, F> Particle<T, F>
     }
 
     pub fn update_position(&mut self, v: &Velocity<T>) {
-        for (i, p) in self.position.coordinates.iter_mut().enumerate() {
-            *p += v.velocities[i].clone();
+        for (i, p) in self.position.coordinates_mut().iter_mut().enumerate() {
+            *p += v.get_velocities()[i].clone();
         }
     }
 
@@ -102,6 +50,7 @@ impl<T, F> Particle<T, F>
 
     pub fn get_fitness(&self) -> f64 { (self.fitness)(&self.position) }
 }
+
 
 impl<T: AddAssign + Add<Output = T> + Clone + SampleUniform> ParticleUpdater<T> {
     pub fn new(omega: f64, c1: f64, c2: f64, position_bounds: Vec<(T,T)>,
@@ -135,3 +84,4 @@ impl<T: AddAssign + Add<Output = T> + Clone + SampleUniform> ParticleUpdater<T> 
 
     fn global_best(&self) -> usize { 0 }
 }
+
