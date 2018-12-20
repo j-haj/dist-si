@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use crate::pso::position::Position;
 use crate::pso::velocity::Velocity;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ParticleUpdateMode {
     Sequential,
     Parallel,
@@ -65,11 +65,10 @@ impl<F> Particle<F>
     }
 
     fn data_parallel_position_update(&mut self, velocity: &Velocity) {
-        for (p, v) in self.position.coordinates_mut()
+        self.position.coordinates_mut()
             .par_iter_mut()
-            .zip(velocity.velocities()) {
-            *p += *v;
-        }
+            .zip(velocity.velocities())
+            .for_each(|(p, v)| *p += *v)
     }
 
     pub fn get_position(&self) -> &Position { &self.position }
