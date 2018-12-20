@@ -1,3 +1,5 @@
+use ndarray;
+use ndarray::Array1;
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform;
 
@@ -6,7 +8,7 @@ use rand::distributions::Uniform;
 ///! the particle's velocity. All velocities are clamped.
 #[derive(Debug, Clone)]
 pub struct Velocity {
-    velocities: Vec<f64>,
+    components: Array1<f64>,
 }
 
 
@@ -18,12 +20,15 @@ impl Velocity {
             let v_dist = Uniform::new(&bound.0, &bound.1);
             initial_velocities.push(rng.sample(v_dist));
         }
-        Velocity { velocities: initial_velocities, }
+        Velocity { components: Array1::from(initial_velocities), }
     }
 
     pub fn from_vec(velocities: Vec<f64>) -> Velocity {
-        Velocity { velocities: velocities.to_vec(), }
+        Velocity { components: Array1::from(velocities.to_vec()), }
     }
 
-    pub fn velocities(&self) -> &[f64] { &self.velocities }
+    pub fn components(&self) -> &Array1<f64> { &self.components }
+    pub fn components_mut(&mut self) -> &mut Array1<f64> {
+        &mut self.components
+    }
 }

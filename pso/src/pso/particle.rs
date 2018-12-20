@@ -1,5 +1,8 @@
+use ndarray;
+use ndarray::{Array1, Zip};
+use ndarray_parallel::prelude::*;
 use rand::{Rng, thread_rng};
-use rand::distributions::Uniform;
+use rand::distributions::{Distribution, Uniform};
 use rayon::prelude::*;
 
 use crate::pso::position::Position;
@@ -19,91 +22,104 @@ pub struct Particle<F>
     velocity: Velocity,
     fitness: F,
     mode: ParticleUpdateMode,
+    pbest: f64,
+    omega: f64,
+    c1: f64,
+    c2: f64,
+    reflect: bool,
 }
 
 
 #[derive(Debug)]
 pub struct ParticleUpdater {
-    omega: f64,
-    c1: f64,
-    c2: f64,
     position_bounds: Vec<(f64,f64)>,
     velocity_bounds: Vec<(f64,f64)>,
-    reflect: bool,
 }
 
 impl<F> Particle<F>
     where F: Fn(&Position) -> f64 {
-    pub fn new(pos_bounds: &[(f64,f64)], v_bounds: &[(f64,f64)],
-               f: F, mode: ParticleUpdateMode) -> Particle<F> {
+    pub fn new(pos_bounds: &[(f64,f64)],
+               v_bounds: &[(f64,f64)],
+               f: F,
+               mode: ParticleUpdateMode,
+               omega: f64,
+               c1: f64,
+               c2: f64,
+               reflect: bool
+    ) -> Particle<F> {
         let initial_pos = Position::new(pos_bounds);
         Particle { position: initial_pos.clone(),
                    pbest_pos: initial_pos,
                    velocity: Velocity::new(v_bounds),
                    fitness: f,
-                   mode: mode, }
+                   mode: mode,
+                   pbest: std::f64::INFINITY,
+                   omega: omega,
+                   c1: c1,
+                   c2: c2,
+                   reflect: reflect,
+        }
 
     }
 
-    pub fn update_position(&mut self, velocity: &Velocity) {
+    pub fn update_velocity(&mut self, gbest: &Position) {
+        let mut rng = thread_rng();
+        let u = Uniform::new(0., 1.);
+        let r1 : f64 = u.sample(&mut rng);
+        let r2 : f64 = u.sample(&mut rng);
+        let omega = self.omega;
+        self.velocity.components_mut().map_inplace(|v| *v = *v * omega);
+        self.velocity.components_mut().scaled_add(self.c1 * r1,
+                                                  self.pbest_pos.coordinates());
+        self.velocity.components_mut().scaled_add(-1. * self.c1 * r1,
+                                                  self.position.coordinates());
+        self.velocity.components_mut().scaled_add(self.c2 * r2,
+                                                  gbest.coordinates());
+        self.velocity.components_mut().scaled_add(-1. * self.c2 * r2,
+                                                  self.position.coordinates());
+    }
+
+    pub fn update_position(&mut self) {
         match self.mode {
             ParticleUpdateMode::Sequential =>
-                self.sequential_position_update(velocity),
+                self.sequential_position_update(),
             ParticleUpdateMode::Parallel =>
-                self.data_parallel_position_update(velocity),
+                self.data_parallel_position_update(),
             _ => panic!("invalid mode - expected 'Sequential', \
                         or 'DataParallel'."),
         }
-    }
-
-    fn sequential_position_update(&mut self, velocity: &Velocity) {
-        for (p, v) in self.position.coordinates_mut()
-            .iter_mut()
-            .zip(velocity.velocities()) {
-            *p += *v;
+        let f = self.fitness();
+        if f < self.pbest {
+            self.pbest = f;
+            self.pbest_pos = self.position.clone();
         }
     }
 
-    fn data_parallel_position_update(&mut self, velocity: &Velocity) {
+    fn sequential_position_update(&mut self) {
         self.position.coordinates_mut()
-            .par_iter_mut()
-            .zip(velocity.velocities())
-            .for_each(|(p, v)| *p += *v)
+            .zip_mut_with(self.velocity.components(),|p, &v| *p += v);
     }
 
-    pub fn get_position(&self) -> &Position { &self.position }
+    fn data_parallel_position_update(&mut self) {
+        Zip::from(self.position.coordinates_mut())
+            .and(self.velocity.components())
+            .par_apply(|p, &v| *p += v)
+    }
 
-    pub fn get_fitness(&self) -> f64 { (self.fitness)(&self.position) }
+    pub fn position(&self) -> &Position { &self.position }
+
+    pub fn fitness(&mut self) -> f64 { (self.fitness)(&self.position) }
+
+    pub fn pbest(&self) -> f64 { self.pbest }
 }
 
 
 impl ParticleUpdater {
     pub fn new(omega: f64, c1: f64, c2: f64, position_bounds: Vec<(f64,f64)>,
                velocity_bounds: Vec<(f64,f64)>, reflect: bool) -> ParticleUpdater {
-        ParticleUpdater { omega: omega, c1: c1, c2: c2,
-                          position_bounds: position_bounds,
+        ParticleUpdater { position_bounds: position_bounds,
                           velocity_bounds: velocity_bounds,
-                          reflect: reflect }
-    }
-
-    fn new_velocity<F>(&self, particle: &Particle<F>, gbest: &Particle<F>)
-        -> Velocity
-        where F: Fn(&Position) -> f64 {
-        // Calculate r1 and r2
-        let mut rng = thread_rng();
-        let u_dist = Uniform::new(0.0, 1.0);
-        let r1 = rng.sample(u_dist);
-        let r2 = rng.sample(u_dist);
-
-        // Get global best
-        let gbest = self.global_best();
-
-        // Get local best
-        //let pbest = particle.pbest;
-
-        // Crate new velocity
-        let vs = Vec::new();
-        Velocity::from_vec(vs)
+        }
     }
 
     fn global_best(&self) -> usize { 0 }

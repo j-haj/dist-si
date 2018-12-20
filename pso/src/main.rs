@@ -1,3 +1,6 @@
+use ndarray;
+use ndarray::Array;
+
 use pso::pso::particle::{Particle, ParticleUpdateMode};
 use pso::pso::position::Position;
 use pso::pso::velocity::Velocity;
@@ -10,14 +13,15 @@ fn main() {
     let p_bounds : Vec<(f64,f64)> = vec![(-10., 10.), (-10., 10.)];
     let v_bounds : Vec<(f64,f64)> = vec![(-1., 1.), (-1., 1.)];
     let mode = ParticleUpdateMode::Parallel;
-    let mut p = Particle::new(&p_bounds, &v_bounds, square, mode);
-    let mut q = Particle::new(&p_bounds, &v_bounds, square, mode);
+    let mut p = Particle::new(&p_bounds, &v_bounds, square, mode,
+                              1., 1., 1.8, true);
     let v = Velocity::new(&v_bounds);
-    println!("Particle 1's fitness: {:?}", p.get_fitness());
-    println!("Particle 2's fitness: {:?}", q.get_fitness());
+    println!("Particle 1's fitness: {:?}", p.fitness());
     println!("Updating particles 1 and 2....");
-    p.update_position(&v);
-    q.update_position(&v);
-    println!("Particle 1's new fitness: {:?}", p.get_fitness());
-    println!("Particle 2's new fitness: {:?}", q.get_fitness());
+    let g_best = Position::from_vec(&vec![0., 0.]);
+    for _ in 0..100 {
+        p.update_velocity(&g_best);
+        p.update_position();
+        println!("Particle 1's new fitness: {:?}", p.fitness());
+    }
 }

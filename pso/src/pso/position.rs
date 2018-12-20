@@ -1,3 +1,4 @@
+use ndarray::Array1;
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform;
 
@@ -11,7 +12,7 @@ use rand::distributions::Uniform;
 ///! f: Position -> f64
 #[derive(Debug, Clone)]
 pub struct Position {
-    coordinates: Vec<f64>,
+    coordinates: Array1<f64>,
 }
 
 impl Position {
@@ -22,12 +23,16 @@ impl Position {
             let p_dist = Uniform::new(&bound.0, &bound.1);
             initial_pos.push(rng.sample(p_dist));
         }
-        Position { coordinates: initial_pos, }
+        Position { coordinates: Array1::from(initial_pos), }
     }
 
-    pub fn coordinates(&self) -> &[f64] { &self.coordinates }
+    pub fn from_vec(coordinates: &[f64]) -> Position {
+        Position { coordinates: Array1::from(coordinates.to_vec()) }
+    }
 
-    pub fn coordinates_mut(&mut self) -> &mut [f64] { &mut self.coordinates }
+    pub fn coordinates(&self) -> &Array1<f64> { &self.coordinates }
+
+    pub fn coordinates_mut(&mut self) -> &mut Array1<f64> { &mut self.coordinates }
 }
 
 
