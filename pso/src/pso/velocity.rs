@@ -1,22 +1,17 @@
-use std::ops::{Add, AddAssign};
-
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform;
-use rand::distributions::uniform::SampleUniform;
-
 
 ///! Represents the velocity of a particle. Each coordinate component of the
 ///! particle has its own speed and direction -- collectively these make up
 ///! the particle's velocity. All velocities are clamped.
 #[derive(Debug, Clone)]
-pub struct Velocity<T> where T: AddAssign + Add<Output = T> + Clone + SampleUniform {
-    velocities: Vec<T>,
+pub struct Velocity {
+    velocities: Vec<f64>,
 }
 
 
-impl<T> Velocity<T>
-    where T: AddAssign + Add<Output = T> + Clone + SampleUniform {
-    pub fn new(bounds: &Vec<(T,T)>) -> Velocity<T> {
+impl Velocity {
+    pub fn new(bounds: &[(f64,f64)]) -> Velocity {
         let mut rng = thread_rng();
         let mut initial_velocities = Vec::new();
         for bound in bounds.iter() {
@@ -26,9 +21,9 @@ impl<T> Velocity<T>
         Velocity { velocities: initial_velocities, }
     }
 
-    pub fn from_vec(velocities: Vec<T>) -> Velocity<T> {
-        Velocity { velocities: velocities, }
+    pub fn from_vec(velocities: Vec<f64>) -> Velocity {
+        Velocity { velocities: velocities.to_vec(), }
     }
 
-    pub fn get_velocities(&self) -> &Vec<T> { &self.velocities }
+    pub fn velocities(&self) -> &[f64] { &self.velocities }
 }

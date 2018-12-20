@@ -1,8 +1,5 @@
-use std::ops::{Add, AddAssign};
-
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform;
-use rand::distributions::uniform::SampleUniform;
 
 ///! Represents the position of a particle. A position does not necessarily
 ///! need to be a numeric value. A position object has a current coordinate,
@@ -13,14 +10,12 @@ use rand::distributions::uniform::SampleUniform;
 ///! stay put. All particles must have a fitness function which is a mapping
 ///! f: Position -> f64
 #[derive(Debug, Clone)]
-pub struct Position<T: AddAssign + Add<Output = T> + Clone + SampleUniform> {
-    coordinates: Vec<T>,
+pub struct Position {
+    coordinates: Vec<f64>,
 }
 
-
-
-impl<T: AddAssign + Add<Output = T> + Clone + SampleUniform> Position<T> {
-    pub fn new(bounds: &Vec<(T,T)>) -> Position<T> {
+impl Position {
+    pub fn new(bounds: &[(f64,f64)]) -> Position {
         let mut rng = thread_rng();
         let mut initial_pos = Vec::new();
         for bound in bounds.iter() {
@@ -30,9 +25,9 @@ impl<T: AddAssign + Add<Output = T> + Clone + SampleUniform> Position<T> {
         Position { coordinates: initial_pos, }
     }
 
-    pub fn coordinates(&self) -> &Vec<T> { &self.coordinates }
+    pub fn coordinates(&self) -> &[f64] { &self.coordinates }
 
-    pub fn coordinates_mut(&mut self) -> &mut Vec<T> { &mut self.coordinates }
+    pub fn coordinates_mut(&mut self) -> &mut [f64] { &mut self.coordinates }
 }
 
 
