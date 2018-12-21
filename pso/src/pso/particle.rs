@@ -129,15 +129,3 @@ impl<F> Particle<F>
     pub fn pbest(&self) -> f64 { self.pbest }
 }
 
-
-impl ParticleUpdater {
-    pub fn new(omega: f64, c1: f64, c2: f64, position_bounds: Vec<(f64,f64)>,
-               velocity_bounds: Vec<(f64,f64)>, reflect: bool) -> ParticleUpdater {
-        ParticleUpdater { position_bounds: position_bounds,
-                          velocity_bounds: velocity_bounds,
-        }
-    }
-
-    fn global_best(&self) -> usize { 0 }
-}
-
