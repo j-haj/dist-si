@@ -79,7 +79,8 @@ impl<F> Particle<F>
                                                   self.position.coordinates());
     }
 
-    pub fn update_position(&mut self) {
+    /// Updates particle position and returns the new fitness value.
+    pub fn update_position(&mut self) -> f64 {
         match self.mode {
             ParticleUpdateMode::Sequential =>
                 self.sequential_position_update(),
@@ -93,6 +94,7 @@ impl<F> Particle<F>
             self.pbest = f;
             self.pbest_pos = self.position.clone();
         }
+        f
     }
 
     fn sequential_position_update(&mut self) {
