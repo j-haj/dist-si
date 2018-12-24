@@ -15,13 +15,16 @@ fn main() {
     let mode = ParticleUpdateMode::Parallel;
     let mut p = Particle::new(&p_bounds, &v_bounds, square, mode,
                               1., 1., 1.8, true);
-    let v = Velocity::new(&v_bounds);
+    let v = Velocity::new(v_bounds.len());
     println!("Particle 1's fitness: {:?}", p.fitness());
     println!("Updating particles 1 and 2....");
     let g_best = Position::from_vec(&vec![0., 0.]);
-    for _ in 0..100 {
+    for i in 0..10000 {
         p.update_velocity(&g_best);
         p.update_position();
-        println!("Particle 1's new fitness: {:?}", p.fitness());
+        if i % 100 == 0 {
+            println!("Round {:?}", i);
+            println!("\tfitness = {:?}", p.fitness());
+        }
     }
 }
