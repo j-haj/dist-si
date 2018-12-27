@@ -8,13 +8,13 @@ use rayon::prelude::*;
 use crate::pso::position::Position;
 use crate::pso::velocity::Velocity;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParticleUpdateMode {
     Sequential,
     Parallel,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Particle<F>
     where F: Fn(&Position) -> f64 {
     position: Position,
@@ -66,6 +66,33 @@ impl<F> Particle<F>
                    reflect: reflect,
         }
 
+    }
+
+    pub fn from_position(position: Position,
+                         v_bounds: &[(f64,f64)],
+                         f: F,
+                         mode: ParticleUpdateMode,
+                         omega: f64,
+                         c1: f64,
+                         c2: f64,
+                         reflect: bool) -> Particle<F> {
+        let max_speeds = Array1::from_vec(v_bounds.clone()
+                                          .into_iter()
+                                          .map(|&x| x.1)
+                                          .collect());
+        Particle {
+            position: position.clone(),
+            pbest_pos: position,
+            velocity: Velocity::new(v_bounds.len()),
+            max_speed: max_speeds,
+            fitness: f,
+            mode: mode,
+            pbest: std::f64::INFINITY,
+            omega: omega,
+            c1: c1,
+            c2: c2,
+            reflect: reflect,
+        }
     }
 
     pub fn update_velocity(&mut self, gbest: &Position) {

@@ -10,7 +10,7 @@ use rand::distributions::Uniform;
 ///! particle should reflect when attempting to move beyond a boundary or
 ///! stay put. All particles must have a fitness function which is a mapping
 ///! f: Position -> f64
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     coordinates: Array1<f64>,
 }
