@@ -1,5 +1,9 @@
-use pso::pso::particle::Particle;
+use rayon::prelude::*;
 
+use crate::pso::particle::{Particle, ParticleUpdateMode};
+use crate::pso::position::Position;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 enum SimulationMode {
     // All particle updates happen sequentially
     Sequential,
@@ -10,14 +14,14 @@ enum SimulationMode {
 }
 
 struct Simulation<F>
-    where F: Fn(&Position) -> f64 {
-    particles: Vec<Particle>,
+    where F: Fn<'a>(&'a Position) -> f64 {
+    particles: Vec<Particle<F>>,
     // Default is 1e-8
     epsilon: f64,
     // Default is SimulationMode::Sequential
     mode: SimulationMode,
-    p_bounds: Vec<[(f64,f64)]>,
-    v_bounds: Vec<[(f64,f64)]>,
+    p_bounds: Vec<(f64,f64)>,
+    v_bounds: Vec<(f64,f64)>,
     fitness: F,
     // Default is 1.0
     c1: f64,
@@ -30,25 +34,18 @@ struct Simulation<F>
 }
 
 impl<F> Simulation<F>
-    where F: Fn(&Position) -> f64 {
-    pub fn new(n_particles: u64,
-               pos_bounds: &[(f64, f64)],
+    where F: Fn<'a>(&'a Position) -> f64 {
+    pub fn new(n_particles: usize,
+               p_bounds: &[(f64, f64)],
                v_bounds: &[(f64, f64)],
                fitness: F) -> Simulation<F> {
-        let mode = if simulation_mode == SimulationMode::Sequential {
-            ParticleUpdateMode::Sequential
-        } else if simulation_mode == SimulationMode::Parallel {
-            ParticleUpdateMode::Parallel
-        } else {
-            panic!("{} is not implemented!", simulation_mode);
-        }
             
         Simulation {
             particles: Vec::with_capacity(n_particles),
             epsilon: 1e-8,
             mode: SimulationMode::Sequential,
-            p_bounds: pos_bounds,
-            v_bounds: v_bounds,
+            p_bounds: p_bounds.to_vec(),
+            v_bounds: v_bounds.to_vec(),
             fitness: fitness,
             c1: 1.0,
             c2: 1.0,
@@ -80,11 +77,18 @@ impl<F> Simulation<F>
     /// Creates the partiles for the simulation. This is called
     /// in the run function.
     fn create_particles(&mut self) {
+        let mode = if self.mode == SimulationMode::Sequential {
+            ParticleUpdateMode::Sequential
+        } else {
+            ParticleUpdateMode::Parallel
+        };
+
         for _ in 0..self.particles.capacity() {
-            self.particles.push(Particle::new(self.pos_bounds,
-                                              self.v_bounds,
-                                              self.f,
-                                              self.mode,
+            self.particles.push(Particle::new(&self.p_bounds,
+                                              &self.v_bounds,
+                                              self.fitness,
+                                              mode,
+                                              self.omega,
                                               self.c1,
                                               self.c2,
                                               self.reflect));
@@ -96,23 +100,24 @@ impl<F> Simulation<F>
     fn sequential_particle_update(&mut self, gbest: &Position) {
         self.particles.iter_mut()
             .for_each(|p| {
-                p.update_velocity();
+                p.update_velocity(gbest);
                 p.update_position();
         });
     }
 
     /// Perform particle update in parallel.
     fn parallel_particle_update(&mut self, gbest: &Position) {
-        self.particles.par_iter_mut()
+        self.particles.iter_mut()
             .for_each(|p| {
                 p.update_velocity(gbest);
                 p.update_position();
             });
+        panic!("Update is not in parallel!");
     }
 
 
     /// Helper function for testing. Sets particles to the given particle vec.
-    fn set_particles(&mut self, particles: Vec<Particle>) {
+    fn set_particles(&mut self, particles: Vec<Particle<F>>) {
         self.particles = particles;
     }
     
@@ -120,56 +125,62 @@ impl<F> Simulation<F>
     /// sequentially, depending on the update mode.
     fn update_particles(&mut self, gbest: &Position) {
         match self.mode {
-            SimulationMode::Sequential => sequential_particle_update(gbest),
-            SimulationMode::Parallel => parallel_particle_update(gbest),
+            SimulationMode::Sequential => self.sequential_particle_update(gbest),
+            SimulationMode::Parallel => self.parallel_particle_update(gbest),
             _ => panic!("SimulationMode not recognized."),
         }
     }
 
     /// Returns the position corresponding to the particle with the smallest
     /// fitness function value. The search is performed sequentially.
-    fn sequential_find_min_particle(&self) -> Position {
-        (_, index) = self.particles.iter()
+    fn sequential_find_min_particle(&self) -> (Position, f64) {
+        let (index, particle) = self.particles.iter()
             .enumerate()
-            .fold(|acc, (p, i)| if p.fitness() < acc.0.fitness() {
-                (p, i)
-            } else {
-                acc
+            .fold((0, &self.particles[0]), |acc, (i, p)| {
+                if p.fitness() < acc.1.fitness() {
+                    (i, p)
+                } else {
+                    acc
+                }
             });
-        self.particles[i].position().clone()
+        (particle.position().clone(), particle.fitness())
     }
 
     /// Returns the position of the particle with the smallest fitness
     /// function value. The search is performed in parallel.
-    fn parallel_find_min_particle(&self) -> Position {
+    fn parallel_find_min_particle(&self) -> (Position, f64) {
         panic!("Not implemented.");
     }
 
     /// Returns the position of the particle with the smallest fitness
     /// function, performed sequentially or in parallel depending on the
     /// the mode.
-    fn find_min_particle(&self) -> Position {
+    fn find_min_particle(&self) -> (Position, f64) {
         match self.mode {
             SimulationMode::Sequential => self.sequential_find_min_particle(),
             SimulationMode::Parallel => self.parallel_find_min_particle(),
+            _ => panic!("Mode not implemented!"),
         }
     }
 
     /// Runs the simulation until the difference in current and prior
     /// minimum fitness values is less than epsilon.
-    pub fn run(&self) {
+    pub fn run(&mut self) {
         self.create_particles();
-        let mut fitness: f64;
-        let mut old_fitness: f64 = std::f64::INFINITY;
+        let mut fitness = 0.;
+        let mut old_fitness = 0.;
         loop {
             // Find best particle
-            let min_pos = self.find_min_particle();
+            let (min_pos, min_fitness) = self.find_min_particle();
+            old_fitness = fitness;
+            fitness = min_fitness;
             
             // Update particle positions
-            let fitness = self.update_particles(&min_pos);
+            self.update_particles(&min_pos);
 
             // Evaluate stopping condition
-            if (fitness - old_fitness).abs() < self.epsilon {
+            let diff = fitness - old_fitness;
+            if diff.abs() < self.epsilon {
                 break;
             }
         }
@@ -180,51 +191,78 @@ impl<F> Simulation<F>
 #[cfg(test)]
 mod tests {
 
-    static omega: f64 = 1.8;
-    static c1: f64 = 1.0;
-    static c2: f64 = 1.0;
-    static p_bounds: Vec<(f64,f64)> = vec![(-1.,1.), (-1.,1.)];
-    static v_bounds: Vec<(f64,f64)> = p_bounds.clone();
-
-    static pos_min: Position = Position::from_vec(vec![0., 0.]);
-    static pos_max: Position = Position::from_vec(vec![1., 1.]);
+    use crate::pso::particle::{Particle, ParticleUpdateMode};
+    use crate::pso::simulation::Simulation;
+    use crate::pso::position::Position;
     
-    static p_min: Particle<Fn(&Position)->f64> =
-        Particle::from_position(pos_min,
-                                &v_bounds,
-                                fitness,
-                                ParticleUpdateMode::Sequential,
-                                omega,
-                                c1,
-                                c2,
-                                false);
-    static p_max: Particle<Fn(&Position)->f64> =
-        Particle::from_position(pos_max,
-                                &v_bounds,
-                                fitness,
-                                ParticleUpdateMode::Sequential,
-                                omega,
-                                c1,
-                                c2,
-                                false);
+    struct TestSim {
+        sim: Simulation<Fn<'a>(&'a Position)->f64>,
+        pos_min: Position,
+        pos_max: Position,
+        min_particle: Particle<Fn(&Position)->f64>,
+        max_particle: Particle<Fn(&Position)->f64>,
+    }
+
+    impl TestSim {
+        pub fn new() -> TestSim {
+            let omega = 1.8;
+            let c1 = 1.0;
+            let c2 = 1.0;
+            let p_bounds = [(-1., 1.), (-1., 1.0)];
+            let v_bounds = p_bounds.clone();
+            let pos_min = Position::from_vec(&[0., 0.]);
+            let pos_max = Position::from_vec(&[1., 1.]);
+            let min_particle =
+                Particle::from_position(pos_min,
+                                        &v_bounds,
+                                        fitness,
+                                        ParticleUpdateMode::Sequential,
+                                        omega,
+                                        c1,
+                                        c2,
+                                        false);
+            let max_particle =
+                Particle::from_position(pos_max,
+                                        &v_bounds,
+                                        fitness,
+                                        ParticleUpdateMode::Sequential,
+                                        omega,
+                                        c1,
+                                        c2,
+                                        false);
+
+            let ts = TestSim {
+                sim: Simulation::new(2, &p_bounds, &v_bounds, &fitness),
+                pos_min: pos_min,
+                pos_max: pos_max,
+                min_particle: min_particle,
+                max_particle: max_particle,
+            };
+            ts.sim.set_particles(vec![min_particle, max_particle]);
+            ts
+        }
+
+        pub fn sim(&self) -> &Simulation<Fn(&Position)->f64> { self.sim }
+        pub fn pos_min(&self) -> &Position { self.pos_min }
+        pub fn pos_max(&self) -> &Position { self.pos_max }
+
+    }
     
     fn fitness(pos: &Position) -> f64 {
-        p.coordinates().iter().map(|x| x*x).fold(0., |acc, x| acc + x)
+        pos.coordinates().iter().map(|x| x*x).fold(0., |acc, x| acc + x)
     }
     
     #[test]
     fn test_seq_find_min() {
-        let sim = Simulation::new(2, &p_bounds, &v_bounds, fitness);
-        sim.set_particles(vec![p_min, p_max]);
-        let actual = sim.sequential_find_min();
-        assert_eq!(actual.position(), pos_min);
+        let test_sim = TestSim::new();
+        let actual = test_sim.sim().sequential_find_min();
+        assert_eq!(actual.position(), test_sim.pos_min());
     }
 
     #[test]
     fn test_par_find_min() {
-        let sim = Simulation::new(2, &p_pounds, &v_bounds, fitness);
-        sim.set_particles(vec![p_min, p_max]);
-        let actual = sim.parallel_find_min();
-        assert_eq!(actual.position(), pos_min);
+        let test_sim = TestSim::new();
+        let actual = test_sim.sim().parallel_find_min();
+        assert_eq!(actual.position(), test_sim.pos_min());
     }
 }

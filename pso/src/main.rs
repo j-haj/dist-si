@@ -1,5 +1,4 @@
 use ndarray;
-use ndarray::Array;
 
 use pso::pso::particle::{Particle, ParticleUpdateMode};
 use pso::pso::position::Position;
@@ -13,7 +12,7 @@ fn main() {
     let p_bounds : Vec<(f64,f64)> = vec![(-10., 10.), (-10., 10.)];
     let v_bounds : Vec<(f64,f64)> = vec![(-1., 1.), (-1., 1.)];
     let mode = ParticleUpdateMode::Parallel;
-    let mut p = Particle::new(&p_bounds, &v_bounds, square, mode,
+    let mut p = Particle::new(&p_bounds, &v_bounds, &square, mode,
                               1., 1., 1.8, true);
     let v = Velocity::new(v_bounds.len());
     println!("Particle 1's fitness: {:?}", p.fitness());
