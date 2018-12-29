@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use ndarray;
 use ndarray::{Array1, Zip};
 use ndarray_parallel::prelude::*;
@@ -16,12 +18,12 @@ pub enum ParticleUpdateMode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Particle<F>
-    where F: Fn<'a>(&'a Position) -> f64 {
+    where F: Fn(&Position) -> f64 {
     position: Position,
     pbest_pos: Position,
     velocity: Velocity,
     max_speed: Array1<f64>,
-    fitness: F,
+    fitness: Rc<F>,
     mode: ParticleUpdateMode,
     pbest: f64,
     omega: f64,
@@ -32,10 +34,10 @@ pub struct Particle<F>
 
 
 impl<F> Particle<F>
-    where F: Fn<'a>(&'a Position) -> f64 {
+    where F: Fn(&Position) -> f64 {
     pub fn new(pos_bounds: &[(f64,f64)],
                v_bounds: &[(f64,f64)],
-               f: F,
+               f: Rc<F>,
                mode: ParticleUpdateMode,
                omega: f64,
                c1: f64,
@@ -64,7 +66,7 @@ impl<F> Particle<F>
 
     pub fn from_position(position: Position,
                          v_bounds: &[(f64,f64)],
-                         f: F,
+                         f: Rc<F>,
                          mode: ParticleUpdateMode,
                          omega: f64,
                          c1: f64,

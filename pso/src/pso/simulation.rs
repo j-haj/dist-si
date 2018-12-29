@@ -1,3 +1,6 @@
+use std::rc::Rc;
+use std::boxed::Box;
+
 use rayon::prelude::*;
 
 use crate::pso::particle::{Particle, ParticleUpdateMode};
@@ -14,7 +17,7 @@ enum SimulationMode {
 }
 
 struct Simulation<F>
-    where F: Fn<'a>(&'a Position) -> f64 {
+    where F: Fn(&Position) -> f64 {
     particles: Vec<Particle<F>>,
     // Default is 1e-8
     epsilon: f64,
@@ -22,7 +25,7 @@ struct Simulation<F>
     mode: SimulationMode,
     p_bounds: Vec<(f64,f64)>,
     v_bounds: Vec<(f64,f64)>,
-    fitness: F,
+    fitness: Rc<F>,
     // Default is 1.0
     c1: f64,
     // Default is 1.0
@@ -34,11 +37,11 @@ struct Simulation<F>
 }
 
 impl<F> Simulation<F>
-    where F: Fn<'a>(&'a Position) -> f64 {
+    where F: Fn(&Position) -> f64 {
     pub fn new(n_particles: usize,
                p_bounds: &[(f64, f64)],
                v_bounds: &[(f64, f64)],
-               fitness: F) -> Simulation<F> {
+               fitness: Rc<F>) -> Simulation<F> {
             
         Simulation {
             particles: Vec::with_capacity(n_particles),
@@ -86,7 +89,7 @@ impl<F> Simulation<F>
         for _ in 0..self.particles.capacity() {
             self.particles.push(Particle::new(&self.p_bounds,
                                               &self.v_bounds,
-                                              self.fitness,
+                                              Rc::clone(&self.fitness),
                                               mode,
                                               self.omega,
                                               self.c1,
@@ -196,7 +199,7 @@ mod tests {
     use crate::pso::position::Position;
     
     struct TestSim {
-        sim: Simulation<Fn<'a>(&'a Position)->f64>,
+        sim: Box<Simulation<Fn(&Position)->f64>>,
         pos_min: Position,
         pos_max: Position,
         min_particle: Particle<Fn(&Position)->f64>,
@@ -232,7 +235,7 @@ mod tests {
                                         false);
 
             let ts = TestSim {
-                sim: Simulation::new(2, &p_bounds, &v_bounds, &fitness),
+                sim: Box::new(Simulation::new(2, &p_bounds, &v_bounds, &fitness)),
                 pos_min: pos_min,
                 pos_max: pos_max,
                 min_particle: min_particle,
@@ -242,7 +245,7 @@ mod tests {
             ts
         }
 
-        pub fn sim(&self) -> &Simulation<Fn(&Position)->f64> { self.sim }
+        pub fn sim(&self) -> &Box<Simulation<Fn(&Position)->f64>> { &self.sim }
         pub fn pos_min(&self) -> &Position { self.pos_min }
         pub fn pos_max(&self) -> &Position { self.pos_max }
 
