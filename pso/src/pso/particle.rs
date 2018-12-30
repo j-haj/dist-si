@@ -18,11 +18,11 @@ pub enum ParticleUpdateMode {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Particle<F>
-    where F: Fn(&Position) -> f64 {
+    where F: Fn(&Position) -> f64 + Clone{
     position: Position,
     pbest_pos: Position,
     velocity: Velocity,
-    max_speed: Array1<f64>,
+    max_speed: Vec<f64>,
     fitness: Rc<F>,
     mode: ParticleUpdateMode,
     pbest: f64,
@@ -34,7 +34,7 @@ pub struct Particle<F>
 
 
 impl<F> Particle<F>
-    where F: Fn(&Position) -> f64 {
+    where F: Fn(&Position) -> f64 + Clone {
     pub fn new(pos_bounds: &[(f64,f64)],
                v_bounds: &[(f64,f64)],
                f: Rc<F>,
@@ -45,10 +45,10 @@ impl<F> Particle<F>
                reflect: bool
     ) -> Particle<F> {
         let initial_pos = Position::new(pos_bounds);
-        let max_speeds = Array1::from_vec(v_bounds.clone()
-                                          .into_iter()
-                                          .map(|&x| x.1)
-                                          .collect());
+        let max_speeds = v_bounds.clone()
+            .into_iter()
+            .map(|&x| x.1)
+            .collect();
         Particle { position: initial_pos.clone(),
                    pbest_pos: initial_pos,
                    velocity: Velocity::new(v_bounds.len()),
@@ -72,10 +72,10 @@ impl<F> Particle<F>
                          c1: f64,
                          c2: f64,
                          reflect: bool) -> Particle<F> {
-        let max_speeds = Array1::from_vec(v_bounds.clone()
-                                          .into_iter()
-                                          .map(|&x| x.1)
-                                          .collect());
+        let max_speeds = v_bounds.clone()
+            .into_iter()
+            .map(|&x| x.1)
+            .collect();
         Particle {
             position: position.clone(),
             pbest_pos: position,
@@ -110,8 +110,9 @@ impl<F> Particle<F>
         self.velocity.components_mut().scaled_add(-1. * global_scale,
                                                   self.position.coordinates());
         // Check speeds
-        self.velocity.components_mut()
-            .zip_mut_with(&self.max_speed, |v, &v_max| *v = v.min(v_max));
+        for (i, v) in self.velocity.components_mut().indexed_iter_mut() {
+            *v = v.min(self.max_speed[i]);
+        }
             
     }
 

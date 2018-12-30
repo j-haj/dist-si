@@ -17,7 +17,7 @@ enum SimulationMode {
 }
 
 struct Simulation<F>
-    where F: Fn(&Position) -> f64 {
+    where F: Fn(&Position) -> f64 + Clone {
     particles: Vec<Particle<F>>,
     // Default is 1e-8
     epsilon: f64,
@@ -37,7 +37,7 @@ struct Simulation<F>
 }
 
 impl<F> Simulation<F>
-    where F: Fn(&Position) -> f64 {
+    where F: Fn(&Position) -> f64 + Clone {
     pub fn new(n_particles: usize,
                p_bounds: &[(f64, f64)],
                v_bounds: &[(f64, f64)],
@@ -193,21 +193,23 @@ impl<F> Simulation<F>
 
 #[cfg(test)]
 mod tests {
-
+    use super::*;
+    
     use crate::pso::particle::{Particle, ParticleUpdateMode};
     use crate::pso::simulation::Simulation;
     use crate::pso::position::Position;
     
-    struct TestSim {
-        sim: Box<Simulation<Fn(&Position)->f64>>,
+    struct TestSim<F: Fn(&Position)->f64 + Clone> {
+        sim: Simulation<F>,
         pos_min: Position,
         pos_max: Position,
-        min_particle: Particle<Fn(&Position)->f64>,
-        max_particle: Particle<Fn(&Position)->f64>,
+        min_particle: Particle<F>,
+        max_particle: Particle<F>,
     }
 
-    impl TestSim {
-        pub fn new() -> TestSim {
+    impl<F> TestSim<F>
+        where F: Fn(&Position)->f64 + Clone {
+        pub fn new(fitness: Rc<F>) -> TestSim<F> {
             let omega = 1.8;
             let c1 = 1.0;
             let c2 = 1.0;
@@ -216,38 +218,38 @@ mod tests {
             let pos_min = Position::from_vec(&[0., 0.]);
             let pos_max = Position::from_vec(&[1., 1.]);
             let min_particle =
-                Particle::from_position(pos_min,
+                Particle::from_position(pos_min.clone(),
                                         &v_bounds,
-                                        fitness,
+                                        Rc::clone(&fitness),
                                         ParticleUpdateMode::Sequential,
                                         omega,
                                         c1,
                                         c2,
                                         false);
             let max_particle =
-                Particle::from_position(pos_max,
+                Particle::from_position(pos_max.clone(),
                                         &v_bounds,
-                                        fitness,
+                                        Rc::clone(&fitness),
                                         ParticleUpdateMode::Sequential,
                                         omega,
                                         c1,
                                         c2,
                                         false);
 
-            let ts = TestSim {
-                sim: Box::new(Simulation::new(2, &p_bounds, &v_bounds, &fitness)),
+            let mut ts = TestSim {
+                sim: Simulation::new(2, &p_bounds, &v_bounds, fitness),
                 pos_min: pos_min,
                 pos_max: pos_max,
-                min_particle: min_particle,
-                max_particle: max_particle,
+                min_particle: min_particle.clone(),
+                max_particle: max_particle.clone(),
             };
             ts.sim.set_particles(vec![min_particle, max_particle]);
             ts
         }
 
-        pub fn sim(&self) -> &Box<Simulation<Fn(&Position)->f64>> { &self.sim }
-        pub fn pos_min(&self) -> &Position { self.pos_min }
-        pub fn pos_max(&self) -> &Position { self.pos_max }
+        pub fn sim(&self) -> &Simulation<F> { &self.sim }
+        pub fn pos_min(&self) -> Position { self.pos_min.clone() }
+        pub fn pos_max(&self) -> Position { self.pos_max.clone() }
 
     }
     
@@ -257,15 +259,15 @@ mod tests {
     
     #[test]
     fn test_seq_find_min() {
-        let test_sim = TestSim::new();
-        let actual = test_sim.sim().sequential_find_min();
-        assert_eq!(actual.position(), test_sim.pos_min());
+        let test_sim = TestSim::new(Rc::new(&fitness));
+        let (position, _) = test_sim.sim().sequential_find_min_particle();
+        assert_eq!(position, test_sim.pos_min());
     }
 
     #[test]
     fn test_par_find_min() {
-        let test_sim = TestSim::new();
-        let actual = test_sim.sim().parallel_find_min();
-        assert_eq!(actual.position(), test_sim.pos_min());
+        let test_sim = TestSim::new(Rc::new(&fitness));
+        let (position, _) = test_sim.sim().parallel_find_min_particle();
+        assert_eq!(position, test_sim.pos_min());
     }
 }
