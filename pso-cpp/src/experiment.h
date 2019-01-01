@@ -51,11 +51,11 @@ public:
     switch (run_mode_) {
     case RunMode::Sequential:
       std::cout << "RunMode: Sequential\n";
-      RunSequential(max_steps, epsilon);
+      RunSequential(max_steps);
       break;
     case RunMode::Parallel:
       std::cout << "RunMode: Parallel\n";
-      RunParallel(max_steps, epsilon);
+      RunParallel(max_steps);
       break;
     }
     auto stop = std::chrono::steady_clock::now();
@@ -130,19 +130,26 @@ private:
 
   void FindMinParticleSequential() noexcept {
     T best_fitness = fitness_(gbest_);
-    for (std::size_t i = 1; i < n_particles_; ++i) {
-      const auto f = fitness_(particles_[i]);
+    for (const auto& p : particles_) {
+      const auto f = fitness_(p);
       if (f < best_fitness) {
 	best_fitness = f;
-	gbest_ = particles_[i];
-	std::cerr << "Updated gbest to " << gbest_ << '\n';
+	gbest_ = p;
       }
     }
     
   }
 
   void FindMinParticleParallel() noexcept {
-
+    T best_fitness = fitness_(gbest_);
+    T f;
+#pragma omp for local f atomic best_fitness, gbest_
+    for (std::size_t i = 0; i < particles_.size(); ++i) {
+      f = fitness_(particles_[i]);
+      if (f < best_fitness) {
+	best_fitness = f;
+	gbest_ = p;
+    }
   }
 
   void UpdateParticlePositionsSequential() noexcept {
