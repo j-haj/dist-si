@@ -20,23 +20,22 @@ template <typename T>
 class AoSExperiment {
 
 public:
-  AoSExperiment(std::function<T(const Particle<T>&)> f,
+  AoSExperiment(std::function<T(const std::vector<T>&)> f,
 		RunMode run_mode,
 		T x_min, T x_max, T v_min, T v_max,
 		std::size_t n_particles, std::size_t dim,
 		T omega, T c1, T c2)
-    : fitness_(f),
-      particles_(std::vector<Particle<T>>(n_particles)),
+    : particles_(std::vector<Particle<T>>(n_particles)),
       run_mode_(run_mode),
       n_particles_(n_particles),
       dim_(dim),
       gbest_(Particle<T>(x_min, x_max, v_min, v_max,
-			 dim, omega, c1, c2)) {
+			 dim, omega, c1, c2, f)) {
 
     // Generate particles for simulation
     for (std::size_t i = 0; i < n_particles; ++i) {
       particles_[i] = Particle<T>(x_min, x_max, v_min, v_max,
-				  dim, omega, c1, c2);
+				  dim, omega, c1, c2, f);
     }
 
     gbest_ = particles_[0];
@@ -110,9 +109,9 @@ private:
   }
 
   void FindMinParticleSequential() noexcept {
-    T best_fitness = fitness_(gbest_);
+    T best_fitness = gbest_.Fitness();
     for (const auto& p : particles_) {
-      const auto f = fitness_(p);
+      const auto f = p.Fitness();
       if (f < best_fitness) {
 	best_fitness = f;
 	gbest_ = p;
@@ -122,10 +121,10 @@ private:
   }
 
   void FindMinParticleParallel() noexcept {
-    T best_fitness = fitness_(gbest_);
+    T best_fitness = gbest_.Fitness();
 #pragma omp parallel for
     for (std::size_t i = 0; i < particles_.size(); ++i) {
-      const auto f = fitness_(particles_[i]);
+      const auto f = particles_[i].Fitness();
       if (f < best_fitness) {
 #pragma omp critical
 	if (f < best_fitness) {
@@ -162,7 +161,6 @@ private:
     }
   }
   
-  std::function<T(const Particle<T>&)> fitness_;
   std::vector<Particle<T>> particles_;
   RunMode run_mode_;
   std::size_t n_particles_;
@@ -170,5 +168,14 @@ private:
   Particle<T> gbest_;
   
 }; // class AoSExperiment
+
+template <typename T>
+class SoAExperiment {
+ public:
+
+ private:
+  
+  
+}; // class SoAExperiment
 
 #endif // EXPERIMENT_H__

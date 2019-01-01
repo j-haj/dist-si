@@ -11,9 +11,9 @@ int main() {
 
   omp_set_num_threads(12);
   
-  auto fitness = [](const Particle<double>& p) {
+  auto fitness = [](const std::vector<double>& p) {
 		   double v = 0.0;
-		   for (const auto& x : p.Coordinates()) {
+		   for (const auto& x : p) {
 		     v += x*x;
 		   }
 		   return v;
