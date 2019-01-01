@@ -1,4 +1,5 @@
-use std::rc::Rc;
+
+use std::sync::Arc;
 
 use ndarray;
 use ndarray::{Array1, Zip};
@@ -10,38 +11,21 @@ use rayon::prelude::*;
 use crate::pso::position::Position;
 use crate::pso::velocity::Velocity;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ParticleUpdateMode {
-    Sequential,
-    Parallel,
-}
-
 #[derive(Debug, Clone, PartialEq)]
-pub struct Particle<F>
-    where F: Fn(&Position) -> f64 + Clone{
+pub struct Particle {
     position: Position,
     pbest_pos: Position,
     velocity: Velocity,
     max_speed: Vec<f64>,
-    fitness: Rc<F>,
-    mode: ParticleUpdateMode,
+    pos_bounds: Vec<(f64, f64)>,
     pbest: f64,
-    omega: f64,
-    c1: f64,
-    c2: f64,
     reflect: bool,
 }
 
 
-impl<F> Particle<F>
-    where F: Fn(&Position) -> f64 + Clone {
+impl Particle {
     pub fn new(pos_bounds: &[(f64,f64)],
                v_bounds: &[(f64,f64)],
-               f: Rc<F>,
-               mode: ParticleUpdateMode,
-               omega: f64,
-               c1: f64,
-               c2: f64,
                reflect: bool
     ) -> Particle<F> {
         let initial_pos = Position::new(pos_bounds);
@@ -52,13 +36,9 @@ impl<F> Particle<F>
         Particle { position: initial_pos.clone(),
                    pbest_pos: initial_pos,
                    velocity: Velocity::new(v_bounds.len()),
-                   max_speed: max_speeds,
-                   fitness: f,
-                   mode: mode,
+                   max_speed:  max_speeds,
+                   pos_bounds: pos_bounds.clone(),
                    pbest: std::f64::INFINITY,
-                   omega: omega,
-                   c1: c1,
-                   c2: c2,
                    reflect: reflect,
         }
 
@@ -66,11 +46,7 @@ impl<F> Particle<F>
 
     pub fn from_position(position: Position,
                          v_bounds: &[(f64,f64)],
-                         f: Rc<F>,
-                         mode: ParticleUpdateMode,
-                         omega: f64,
-                         c1: f64,
-                         c2: f64,
+                         pos_bounds: &[(f64,f64)],
                          reflect: bool) -> Particle<F> {
         let max_speeds = v_bounds.clone()
             .into_iter()
@@ -81,12 +57,8 @@ impl<F> Particle<F>
             pbest_pos: position,
             velocity: Velocity::new(v_bounds.len()),
             max_speed: max_speeds,
-            fitness: f,
-            mode: mode,
+            pos_bounds: pos_bounds.clone(),
             pbest: std::f64::INFINITY,
-            omega: omega,
-            c1: c1,
-            c2: c2,
             reflect: reflect,
         }
     }
@@ -111,7 +83,7 @@ impl<F> Particle<F>
                                                   self.position.coordinates());
         // Check speeds
         for (i, v) in self.velocity.components_mut().indexed_iter_mut() {
-            *v = v.min(self.max_speed[i]);
+            *v = v.min(self.max_speed[i]).max(-1*self.max_speed[i]);
         }
             
     }
@@ -124,7 +96,7 @@ impl<F> Particle<F>
             ParticleUpdateMode::Parallel =>
                 self.data_parallel_position_update(),
             _ => panic!("invalid mode - expected 'Sequential', \
-                        or 'DataParallel'."),
+                        or 'Parallel'."),
         }
         let f = self.fitness();
         if f < self.pbest {
@@ -135,22 +107,12 @@ impl<F> Particle<F>
         f
     }
 
-    fn sequential_position_update(&mut self) {
-        self.position.coordinates_mut()
-            .zip_mut_with(self.velocity.components(),|p, &v| *p += v);
-    }
-
-    fn data_parallel_position_update(&mut self) {
-        Zip::from(self.position.coordinates_mut())
-            .and(self.velocity.components())
-            .par_apply(|p, &v| *p += v)
-    }
 
     pub fn position(&self) -> &Position { &self.position }
+    pub fn positino_mut(&mut self) -> &mut Position} { &mut self.position }
 
     pub fn velocity(&self) -> &Velocity { &self.velocity }
-
-    pub fn fitness(&self) -> f64 { (self.fitness)(&self.position) }
+    pub fn velocity_mut(&self) -> &mut Velocity { &mut self.velocity }
 
     pub fn pbest(&self) -> f64 { self.pbest }
 }

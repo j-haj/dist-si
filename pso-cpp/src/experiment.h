@@ -3,7 +3,9 @@
 
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <functional>
+#include <limits>
 #include <vector>
 
 #include "particle.h"
@@ -27,7 +29,9 @@ public:
       particles_(std::vector<Particle<T>>(n_particles)),
       run_mode_(run_mode),
       n_particles_(n_particles),
-      dim_(dim) {
+      dim_(dim),
+      gbest_(Particle<T>(x_min, x_max, v_min, v_max,
+			 dim, omega, c1, c2)) {
 
     // Generate particles for simulation
     for (std::size_t i = 0; i < n_particles; ++i) {
@@ -39,14 +43,79 @@ public:
     FindMinParticle();
   }
 
-  void Run(std::size_t max_steps, T epsilon) {
-    
-    
+  void Run(std::size_t max_steps) {
+    std::cout << "Beginning simulation with "
+	      << n_particles_
+	      << " particles\n";
+    auto start = std::chrono::steady_clock::now();
+    switch (run_mode_) {
+    case RunMode::Sequential:
+      std::cout << "RunMode: Sequential\n";
+      RunSequential(max_steps, epsilon);
+      break;
+    case RunMode::Parallel:
+      std::cout << "RunMode: Parallel\n";
+      RunParallel(max_steps, epsilon);
+      break;
+    }
+    auto stop = std::chrono::steady_clock::now();
+    std::chrono::duration<double> elapsed = stop - start;
+    std::cout << "in " << elapsed.count() << " seconds\n";
+    //    std::cout << "\tsteps taken: " << n_steps << '\n';
+    std::cout << "\tgbest: " << gbest_ << '\n';
   }
 
+  void UpdateParticleVelocities() noexcept {
+    switch (run_mode_) {
+    case RunMode::Sequential:
+      UpdateParticleVelocitiesSequential();
+      break;
+    case RunMode::Parallel:
+      UpdateParticleVelocitiesParallel();
+      break;
+    }
+  }
+
+  void UpdateParticlePositions() noexcept {
+    switch (run_mode_) {
+    case RunMode::Sequential:
+      UpdateParticlePositionsSequential();
+      break;
+    case RunMode::Parallel:
+      UpdateParticlePositionsParallel();
+      break;
+    }
+  }
   
   
 private:
+
+  void RunSequential(std::size_t max_steps) {
+    std::size_t n_steps = 0;
+    T old_fitness = static_cast<T>(0);
+    T current_fitness = 1;
+
+    while (n_steps < max_steps) {
+      // Get global min
+      FindMinParticle();
+      
+      old_fitness = current_fitness;
+      current_fitness = fitness_(gbest_);
+
+      // Update particle velocities
+      UpdateParticleVelocities();
+
+      // Update particle positions
+      UpdateParticlePositions();
+
+      ++n_steps;
+    }
+    std::cout << "Simulation done after " << n_steps << " steps ";
+  }
+
+  void RunParallel(std::size_t max_steps) {
+    
+  }
 
   void FindMinParticle() noexcept {
     switch (run_mode_) {
@@ -66,6 +135,7 @@ private:
       if (f < best_fitness) {
 	best_fitness = f;
 	gbest_ = particles_[i];
+	std::cerr << "Updated gbest to " << gbest_ << '\n';
       }
     }
     
@@ -74,8 +144,28 @@ private:
   void FindMinParticleParallel() noexcept {
 
   }
+
+  void UpdateParticlePositionsSequential() noexcept {
+    for (auto& p : particles_) {
+      p.UpdatePosition();
+    }
+  }
+
+  void UpdateParticlePositionsParallel() noexcept {
+
+  }
+
+  void UpdateParticleVelocitiesSequential() noexcept {
+    for (auto& p : particles_) {
+      p.UpdateVelocity(gbest_);
+    }
+  }
+
+  void UpdateParticleVelocitiesParallel() noexcept {
+
+  }
   
-  std::function<T(const std::vector<T>&)> fitness_;
+  std::function<T(const Particle<T>&)> fitness_;
   std::vector<Particle<T>> particles_;
   RunMode run_mode_;
   std::size_t n_particles_;

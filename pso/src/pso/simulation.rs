@@ -1,5 +1,4 @@
-use std::rc::Rc;
-use std::boxed::Box;
+use std::sync::Arc;
 
 use rayon::prelude::*;
 
@@ -17,7 +16,7 @@ enum SimulationMode {
 }
 
 struct Simulation<F>
-    where F: Fn(&Position) -> f64 + Clone {
+    where F: Fn(&Position) -> f64 + Clone + Send + 'static {
     particles: Vec<Particle<F>>,
     // Default is 1e-8
     epsilon: f64,
@@ -25,7 +24,7 @@ struct Simulation<F>
     mode: SimulationMode,
     p_bounds: Vec<(f64,f64)>,
     v_bounds: Vec<(f64,f64)>,
-    fitness: Rc<F>,
+    fitness: Arc<F>,
     // Default is 1.0
     c1: f64,
     // Default is 1.0
@@ -37,11 +36,11 @@ struct Simulation<F>
 }
 
 impl<F> Simulation<F>
-    where F: Fn(&Position) -> f64 + Clone {
+    where F: Fn(&Position) -> f64 + Clone + Send + 'static {
     pub fn new(n_particles: usize,
                p_bounds: &[(f64, f64)],
                v_bounds: &[(f64, f64)],
-               fitness: Rc<F>) -> Simulation<F> {
+               fitness: Arc<F>) -> Simulation<F> {
             
         Simulation {
             particles: Vec::with_capacity(n_particles),
@@ -62,6 +61,7 @@ impl<F> Simulation<F>
         self.epsilon = epsilon;
         self
     }
+    
     pub fn c1(&mut self, c1: f64) -> &mut Simulation<F> {
         self.c1 = c1;
         self
@@ -77,6 +77,12 @@ impl<F> Simulation<F>
         self
     }
 
+    pub fn simulation_mode(&mut self, mode: SimulationMode) ->
+        &mut Simulation<F> {
+        self.mode = mode;
+        self
+    }
+
     /// Creates the partiles for the simulation. This is called
     /// in the run function.
     fn create_particles(&mut self) {
@@ -89,7 +95,7 @@ impl<F> Simulation<F>
         for _ in 0..self.particles.capacity() {
             self.particles.push(Particle::new(&self.p_bounds,
                                               &self.v_bounds,
-                                              Rc::clone(&self.fitness),
+                                              Arc::clone(&self.fitness),
                                               mode,
                                               self.omega,
                                               self.c1,
@@ -152,7 +158,16 @@ impl<F> Simulation<F>
     /// Returns the position of the particle with the smallest fitness
     /// function value. The search is performed in parallel.
     fn parallel_find_min_particle(&self) -> (Position, f64) {
-        panic!("Not implemented.");
+        let (index, particle) = self.particles.par_iter()
+            .enumerate()
+            .reduce(|| (0, self.particles[0]), |acc, (i, p)| {
+                if p.fitness() < acc.1.fitnes() {
+                    (i, p)
+                } else {
+                    acc
+                }
+            });
+        (particle.position().clone(), particle.fitness())
     }
 
     /// Returns the position of the particle with the smallest fitness
@@ -199,7 +214,7 @@ mod tests {
     use crate::pso::simulation::Simulation;
     use crate::pso::position::Position;
     
-    struct TestSim<F: Fn(&Position)->f64 + Clone> {
+    struct TestSim<F: Fn(&Position)->f64 + Clone + Send + 'static> {
         sim: Simulation<F>,
         pos_min: Position,
         pos_max: Position,
@@ -208,8 +223,8 @@ mod tests {
     }
 
     impl<F> TestSim<F>
-        where F: Fn(&Position)->f64 + Clone {
-        pub fn new(fitness: Rc<F>) -> TestSim<F> {
+        where F: Fn(&Position)->f64 + Clone + Send + 'static {
+        pub fn new(fitness: Arc<F>) -> TestSim<F> {
             let omega = 1.8;
             let c1 = 1.0;
             let c2 = 1.0;
@@ -220,7 +235,7 @@ mod tests {
             let min_particle =
                 Particle::from_position(pos_min.clone(),
                                         &v_bounds,
-                                        Rc::clone(&fitness),
+                                        Arc::clone(&fitness),
                                         ParticleUpdateMode::Sequential,
                                         omega,
                                         c1,
@@ -229,7 +244,7 @@ mod tests {
             let max_particle =
                 Particle::from_position(pos_max.clone(),
                                         &v_bounds,
-                                        Rc::clone(&fitness),
+                                        Arc::clone(&fitness),
                                         ParticleUpdateMode::Sequential,
                                         omega,
                                         c1,
@@ -259,14 +274,14 @@ mod tests {
     
     #[test]
     fn test_seq_find_min() {
-        let test_sim = TestSim::new(Rc::new(&fitness));
+        let test_sim = TestSim::new(Arc::new(&fitness));
         let (position, _) = test_sim.sim().sequential_find_min_particle();
         assert_eq!(position, test_sim.pos_min());
     }
 
     #[test]
     fn test_par_find_min() {
-        let test_sim = TestSim::new(Rc::new(&fitness));
+        let test_sim = TestSim::new(Arc::new(&fitness));
         let (position, _) = test_sim.sim().parallel_find_min_particle();
         assert_eq!(position, test_sim.pos_min());
     }

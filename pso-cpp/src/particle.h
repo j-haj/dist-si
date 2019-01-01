@@ -1,6 +1,8 @@
 #ifndef PARTICLE_H__
-#define PARTiCLE_H__
+#define PARTICLE_H__
 
+#include <cmath>
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -11,7 +13,7 @@ class Particle {
 public:
   Particle(T x_min, T x_max, T v_min, T v_max,
 	   std::size_t n, T omega, T c1, T c2)
-    : current_pos_(util::uniform_rand_vec(n, x_min, x_max)),
+    : current_pos_(util::uniform_rand_vec<T>(n, x_min, x_max)),
       local_best_pos_(current_pos_),
       velocity_(std::vector<T>(n, 0)),
       x_min_(x_min),
@@ -20,21 +22,43 @@ public:
       v_max_(v_max),
       omega_(omega),
       c1_(c1),
-      c2_(c2) {
-    rd_ = std::random_device();
-    gen_ = std::mt19937_64(rd_);
-    dist_ = std::uniform_real_distribution<T>(0, 1);
+      c2_(c2) {}
+
+  Particle() : current_pos_(util::uniform_rand_vec<T>(1, 0, 1)),
+	       local_best_pos_(current_pos_),
+	       velocity_(std::vector<T>()),
+	       x_min_(0),
+	       x_max_(0),
+	       v_min_(0),
+	       v_max_(0),
+	       omega_(0),
+	       c1_(0),
+	       c2_(0) {}
+    
+
+  Particle<T>& operator=(const Particle<T>& p) {
+    current_pos_ = p.current_pos_;
+    local_best_pos_ = p.local_best_pos_;
+    velocity_ = p.velocity_;
+    x_min_ = p.x_min_;
+    x_max_ = p.x_max_;
+    v_min_ = p.v_min_;
+    v_max_ = p.v_max_;
+    omega_ = p.omega_;
+    c1_ = p.c1_;
+    c2_ = p.c2_;
+    return *this;
   }
 
   void UpdateVelocity(const Particle<T>& gbest) noexcept;
   void UpdatePosition() noexcept;
   
-  T Coordinate(std::size_t i) const noexcept {
-    return current_pos_[i];
+  const std::vector<T>& Coordinates() const noexcept {
+    return current_pos_;
   }
   
-  T Velocity(std::size_t i) const noexcept {
-    return velocity_[i];
+  const std::vector<T>& Velocity() const noexcept {
+    return velocity_;
   }
   
 private:
@@ -48,23 +72,19 @@ private:
   T omega_;
   T c1_;
   T c2_;
-  std::random_device rd_;
-  std::mt19937_64 gen_;
-  std::uniform_real_distribution<T> dist_;
-  
 
 }; // class Particle
 
 template <typename T>
 void Particle<T>::UpdateVelocity(const Particle<T>& gbest) noexcept {
-  const auto r1 = dist_(gen_);
-  const auto r2 = dist_(gen_);
+  const auto r1 = util::uniform_unit<T>();
+  const auto r2 = util::uniform_unit<T>();
   for (std::size_t i = 0; i < velocity_.size(); ++i) {
     velocity_[i] = velocity_[i] * omega_
-      + c1_ * r1 (local_best_pos_[i] - current_pos_[i])
-      + c2_ * r2 (gbest[i] - current_pos_[i]);
+      + c1_ * r1 * (local_best_pos_[i] - current_pos_[i])
+      + c2_ * r2 * (gbest.Coordinates()[i] - current_pos_[i]);
     // Clamp velocity at min/max
-    velocity_[i] = min(max(v_min_, velocity_[i]), v_max_);
+    velocity_[i] = std::min(std::max(v_min_, velocity_[i]), v_max_);
   }
 }
 
@@ -80,4 +100,14 @@ void Particle<T>::UpdatePosition() noexcept {
   }
 }
 
-#endif
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Particle<T>& p) {
+  os << "Particle{ ";
+  for (const auto x : p.Coordinates()) {
+    os << x << " ";
+  }
+  os << "}";
+  return os;
+}
+    
+#endif // PARTICLE_H__
