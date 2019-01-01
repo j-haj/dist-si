@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include <omp.h>
+
 #include "experiment.h"
 
 int main() {
@@ -7,6 +9,8 @@ int main() {
   double c1 = 1.0;
   double c2 = 1.0;
 
+  omp_set_num_threads(12);
+  
   auto fitness = [](const Particle<double>& p) {
 		   double v = 0.0;
 		   for (const auto& x : p.Coordinates()) {
@@ -15,7 +19,7 @@ int main() {
 		   return v;
 		};
   AoSExperiment<double> experiment(fitness,
-				   RunMode::Sequential,
+				   RunMode::Parallel,
 				   -10.0,
 				   10.0,
 				   -10.0,

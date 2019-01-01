@@ -44,26 +44,33 @@ public:
   }
 
   void Run(std::size_t max_steps) {
+    std::size_t n_steps = 0;
+
     std::cout << "Beginning simulation with "
 	      << n_particles_
 	      << " particles\n";
     auto start = std::chrono::steady_clock::now();
-    switch (run_mode_) {
-    case RunMode::Sequential:
-      std::cout << "RunMode: Sequential\n";
-      RunSequential(max_steps);
-      break;
-    case RunMode::Parallel:
-      std::cout << "RunMode: Parallel\n";
-      RunParallel(max_steps);
-      break;
+    
+    while (n_steps < max_steps) {
+      // Get global min
+      FindMinParticle();
+      
+      // Update particle velocities
+      UpdateParticleVelocities();
+
+      // Update particle positions
+      UpdateParticlePositions();
+
+      ++n_steps;
     }
     auto stop = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
+    std::cout << "Simulation done after " << n_steps << " steps ";
     std::cout << "in " << elapsed.count() << " seconds\n";
-    //    std::cout << "\tsteps taken: " << n_steps << '\n';
     std::cout << "\tgbest: " << gbest_ << '\n';
+
   }
+
 
   void UpdateParticleVelocities() noexcept {
     switch (run_mode_) {
@@ -90,32 +97,6 @@ public:
   
 private:
 
-  void RunSequential(std::size_t max_steps) {
-    std::size_t n_steps = 0;
-    T old_fitness = static_cast<T>(0);
-    T current_fitness = 1;
-
-    while (n_steps < max_steps) {
-      // Get global min
-      FindMinParticle();
-      
-      old_fitness = current_fitness;
-      current_fitness = fitness_(gbest_);
-
-      // Update particle velocities
-      UpdateParticleVelocities();
-
-      // Update particle positions
-      UpdateParticlePositions();
-
-      ++n_steps;
-    }
-    std::cout << "Simulation done after " << n_steps << " steps ";
-  }
-
-  void RunParallel(std::size_t max_steps) {
-    
-  }
 
   void FindMinParticle() noexcept {
     switch (run_mode_) {
@@ -142,13 +123,16 @@ private:
 
   void FindMinParticleParallel() noexcept {
     T best_fitness = fitness_(gbest_);
-    T f;
-#pragma omp for local f atomic best_fitness, gbest_
+#pragma omp parallel for
     for (std::size_t i = 0; i < particles_.size(); ++i) {
-      f = fitness_(particles_[i]);
+      const auto f = fitness_(particles_[i]);
       if (f < best_fitness) {
-	best_fitness = f;
-	gbest_ = p;
+#pragma omp critical
+	if (f < best_fitness) {
+	  best_fitness = f;
+	  gbest_ = particles_[i];
+	}
+      }
     }
   }
 
@@ -159,7 +143,10 @@ private:
   }
 
   void UpdateParticlePositionsParallel() noexcept {
-
+#pragma omp parallel for
+    for (std::size_t i = 0; i < particles_.size(); ++i) {
+      particles_[i].UpdatePosition();
+    }
   }
 
   void UpdateParticleVelocitiesSequential() noexcept {
@@ -169,7 +156,10 @@ private:
   }
 
   void UpdateParticleVelocitiesParallel() noexcept {
-
+#pragma omp parallel for
+    for (std::size_t i = 0; i < particles_.size(); ++i) {
+      particles_[i].UpdateVelocity(gbest_);
+    }
   }
   
   std::function<T(const Particle<T>&)> fitness_;

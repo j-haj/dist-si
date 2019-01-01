@@ -1,7 +1,5 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.9)
 project(pso)
-
-set(CMAKE_CXX_COMPILER g++-8)
 
 find_package(OpenMP REQUIRED)
 
