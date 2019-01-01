@@ -12,34 +12,33 @@
 
 template <typename T>
 class Particle {
-public:
-  Particle(T x_min, T x_max, T v_min, T v_max,
-	   std::size_t n, T omega, T c1, T c2,
-	   std::function<T(const std::vector<T>&)> f)
-    : current_pos_(util::uniform_rand_vec<T>(n, x_min, x_max)),
-      local_best_pos_(current_pos_),
-      velocity_(std::vector<T>(n, 0)),
-      fitness_(f),
-      x_min_(x_min),
-      x_max_(x_max),
-      v_min_(v_min),
-      v_max_(v_max),
-      omega_(omega),
-      c1_(c1),
-      c2_(c2) {}
+ public:
+  Particle(T x_min, T x_max, T v_min, T v_max, std::size_t n, T omega, T c1,
+           T c2, std::function<T(const std::vector<T>&)> f)
+      : current_pos_(util::uniform_rand_vec<T>(n, x_min, x_max)),
+        local_best_pos_(current_pos_),
+        velocity_(std::vector<T>(n, 0)),
+        fitness_(f),
+        x_min_(x_min),
+        x_max_(x_max),
+        v_min_(v_min),
+        v_max_(v_max),
+        omega_(omega),
+        c1_(c1),
+        c2_(c2) {}
 
-  Particle() : current_pos_(util::uniform_rand_vec<T>(1, 0, 1)),
-	       local_best_pos_(current_pos_),
-	       velocity_(std::vector<T>()),
-	       fitness_([](const std::vector<T>& p) { return static_cast<T>(0); }),
-	       x_min_(0),
-	       x_max_(0),
-	       v_min_(0),
-	       v_max_(0),
-	       omega_(0),
-	       c1_(0),
-	       c2_(0) {}
-    
+  Particle()
+      : current_pos_(util::uniform_rand_vec<T>(1, 0, 1)),
+        local_best_pos_(current_pos_),
+        velocity_(std::vector<T>()),
+        fitness_([](const std::vector<T>& p) { return static_cast<T>(0); }),
+        x_min_(0),
+        x_max_(0),
+        v_min_(0),
+        v_max_(0),
+        omega_(0),
+        c1_(0),
+        c2_(0) {}
 
   Particle<T>& operator=(const Particle<T>& p) {
     current_pos_ = p.current_pos_;
@@ -58,20 +57,14 @@ public:
 
   void UpdateVelocity(const Particle<T>& gbest) noexcept;
   void UpdatePosition() noexcept;
-  
-  const std::vector<T>& Coordinates() const noexcept {
-    return current_pos_;
-  }
-  
-  const std::vector<T>& Velocity() const noexcept {
-    return velocity_;
-  }
 
-  T Fitness() const noexcept {
-    return fitness_(current_pos_);
-  }
-  
-private:
+  const std::vector<T>& Coordinates() const noexcept { return current_pos_; }
+
+  const std::vector<T>& Velocity() const noexcept { return velocity_; }
+
+  T Fitness() const noexcept { return fitness_(current_pos_); }
+
+ private:
   std::vector<T> current_pos_;
   std::vector<T> local_best_pos_;
   std::vector<T> velocity_;
@@ -84,16 +77,16 @@ private:
   T c1_;
   T c2_;
 
-}; // class Particle
+};  // class Particle
 
 template <typename T>
 void Particle<T>::UpdateVelocity(const Particle<T>& gbest) noexcept {
   const auto r1 = util::uniform_unit<T>();
   const auto r2 = util::uniform_unit<T>();
   for (std::size_t i = 0; i < velocity_.size(); ++i) {
-    velocity_[i] = velocity_[i] * omega_
-      + c1_ * r1 * (local_best_pos_[i] - current_pos_[i])
-      + c2_ * r2 * (gbest.Coordinates()[i] - current_pos_[i]);
+    velocity_[i] = velocity_[i] * omega_ +
+                   c1_ * r1 * (local_best_pos_[i] - current_pos_[i]) +
+                   c2_ * r2 * (gbest.Coordinates()[i] - current_pos_[i]);
     // Clamp velocity at min/max
     velocity_[i] = std::min(std::max(v_min_, velocity_[i]), v_max_);
   }
@@ -123,5 +116,5 @@ std::ostream& operator<<(std::ostream& os, const Particle<T>& p) {
   os << "}";
   return os;
 }
-    
-#endif // PARTICLE_H__
+
+#endif  // PARTICLE_H__
