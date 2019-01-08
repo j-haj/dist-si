@@ -9,9 +9,12 @@
 #include <vector>
 
 #include "particle.h"
+#include "particle_update_mode.h"
 #include "particles.h"
+#include "particles_functional.h"
 
 enum class RunMode { Sequential, Parallel };
+enum class SoAType { Standard, Functional };
 
 template <typename T>
 class AoSExperiment {
@@ -34,12 +37,10 @@ class AoSExperiment {
     FindMinParticle();
   }
 
-  void Run(std::size_t max_steps) {
+  double Run(std::size_t max_steps, const std::vector<T>& solution, T epsilon) {
     std::size_t n_steps = 0;
 
-    std::cout << "Beginning simulation with " << n_particles_ << " particles\n";
     auto start = std::chrono::steady_clock::now();
-
     while (n_steps < max_steps) {
       // Get global min
       FindMinParticle();
@@ -50,13 +51,14 @@ class AoSExperiment {
       // Update particle positions
       UpdateParticlePositions();
 
+      if (util::squared_diff(gbest_.Coordinates(), solution) < epsilon * epsilon) {
+	break;
+      }
       ++n_steps;
     }
     auto stop = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
-    std::cout << "Simulation done after " << n_steps << " steps ";
-    std::cout << "in " << elapsed.count() << " seconds\n";
-    std::cout << "\tgbest: " << gbest_ << '\n';
+    return elapsed.count();
   }
 
   void UpdateParticleVelocities() noexcept {
@@ -106,15 +108,13 @@ class AoSExperiment {
 
   void FindMinParticleParallel() noexcept {
     T best_fitness = gbest_.Fitness();
-#pragma omp parallel for
+#pragma omp parallel for schedule(runtime)
     for (std::size_t i = 0; i < particles_.size(); ++i) {
       const auto f = particles_[i].Fitness();
-      if (f < best_fitness) {
 #pragma omp critical
-        if (f < best_fitness) {
-          best_fitness = f;
-          gbest_ = particles_[i];
-        }
+      if (f < best_fitness) {
+	best_fitness = f;
+	gbest_ = particles_[i];
       }
     }
   }
@@ -126,7 +126,7 @@ class AoSExperiment {
   }
 
   void UpdateParticlePositionsParallel() noexcept {
-#pragma omp parallel for
+#pragma omp parallel for schedule(runtime)
     for (std::size_t i = 0; i < particles_.size(); ++i) {
       particles_[i].UpdatePosition();
     }
@@ -139,7 +139,7 @@ class AoSExperiment {
   }
 
   void UpdateParticleVelocitiesParallel() noexcept {
-#pragma omp parallel for
+#pragma omp parallel for schedule(runtime)
     for (std::size_t i = 0; i < particles_.size(); ++i) {
       particles_[i].UpdateVelocity(gbest_);
     }
@@ -153,23 +153,20 @@ class AoSExperiment {
 
 };  // class AoSExperiment
 
-template <typename T>
+template <template<class> class PType, class T>
 class SoAExperiment {
  public:
   SoAExperiment(std::function<T(const std::vector<T>&)> f,
                 ParticleUpdateMode p_mode, T x_min, T x_max, T v_min, T v_max,
                 std::size_t n_particles, std::size_t dim, T omega, T c1, T c2)
-      : particles_(Particles<T>(f, p_mode, n_particles, dim, x_min, x_max,
-                                v_min, v_max, omega, c1, c2)),
+    : particles_(PType<T>(f, p_mode, n_particles, dim, x_min, x_max,
+			  v_min, v_max, omega, c1, c2)),
         dim_(dim) {}
 
-  void Run(std::size_t max_steps) {
+  double Run(std::size_t max_steps, const std::vector<T>& solution, T epsilon) {
     std::size_t n_steps = 0;
 
-    std::cout << "Beginning simulation with " << particles_.size()
-              << " particles\n";
     auto start = std::chrono::steady_clock::now();
-
     while (n_steps < max_steps) {
       // Update particle velocities
       particles_.UpdateVelocities();
@@ -177,17 +174,18 @@ class SoAExperiment {
       // Update particle positions
       particles_.UpdatePositions();
 
+      if (util::squared_diff(solution, particles_.gbest()) < epsilon * epsilon) {
+	break;
+      }
       ++n_steps;
     }
     auto stop = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
-    std::cout << "Simulation done after " << n_steps << " steps ";
-    std::cout << "in " << elapsed.count() << " seconds\n";
-    std::cout << "\tgbest: " << particles_.gbest() << '\n';
+    return elapsed.count();
   }
 
  private:
-  Particles<T> particles_;
+  PType<T> particles_;
   std::size_t dim_;
 
 };  // class SoAExperiment

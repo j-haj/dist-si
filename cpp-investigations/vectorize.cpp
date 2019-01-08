@@ -21,7 +21,7 @@ void  mul(vector<T>& x, const vector<T>& v1,
 template <typename T>
 void nested_loop(vector<vector<T>>& xs, const vector<vector<T>>& v1s,
 		 const vector<vector<T>>& v2s, const vector<vector<T>>& v3s) {
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for
   for (std::size_t i = 0; i < xs.size(); ++i) {
     for (std::size_t j = 0; j < DIM; ++j) {
       xs[i][j] = xs[i][j] + 2 * (v1s[i][j] - v2s[i][j]) +
@@ -33,7 +33,7 @@ void nested_loop(vector<vector<T>>& xs, const vector<vector<T>>& v1s,
 template <typename T>
 void single_loop(vector<vector<T>>& xs, const vector<vector<T>>& v1s,
 		 const vector<vector<T>>& v2s, const vector<vector<T>>& v3s) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
   for (std::size_t i = 0; i < xs.size(); ++i) {
     mul(xs[i], v1s[i], v2s[i], v3s[i]);
   }
@@ -101,9 +101,8 @@ int main() {
   auto v1s = random_vectors<T>(N);
   auto v2s = random_vectors<T>(N);
   auto v3s = random_vectors<T>(N);
-  omp_set_num_threads(4);
 #pragma omp parallel
-  {
+  omp_set_num_threads(12);
   auto n_threads = omp_get_num_threads();
   std::cout << "Running on " << n_threads << " threads\n";
   }

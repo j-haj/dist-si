@@ -7,13 +7,8 @@
 #include <iostream>
 #include <vector>
 
+#include "particle_update_mode.h"
 #include "util.h"
-
-enum class ParticleUpdateMode {
-  Sequential,
-  Parallel,
-  AVX,
-};  // enum class ParticleUpdateMode
 
 template <typename T>
 class Particles {
@@ -44,6 +39,7 @@ class Particles {
     for (auto& v : velocities_) {
       v = std::vector<T>(dim);
     }
+    gbest_ = positions_[0];
   }
 
   Particles()
@@ -77,9 +73,6 @@ class Particles {
       case ParticleUpdateMode::Parallel:
         UpdatePositionsParallel();
         break;
-      case ParticleUpdateMode::AVX:
-        UpdatePositionsAVX();
-        break;
     }
   }
 
@@ -91,9 +84,6 @@ class Particles {
       case ParticleUpdateMode::Parallel:
         UpdateVelocitiesParallel();
         break;
-      case ParticleUpdateMode::AVX:
-        UpdateVelocitiesAVX();
-        break;
     }
   }
 
@@ -103,10 +93,8 @@ class Particles {
  private:
   void UpdateVelocitiesSequential() noexcept;
   void UpdateVelocitiesParallel() noexcept;
-  void UpdateVelocitiesAVX() noexcept;
   void UpdatePositionsSequential() noexcept;
   void UpdatePositionsParallel() noexcept;
-  void UpdatePositionsAVX() noexcept;
 
   ParticleUpdateMode mode_;
   std::size_t n_particles_;
@@ -129,9 +117,11 @@ class Particles {
 
 template <typename T>
 void Particles<T>::UpdateVelocitiesSequential() noexcept {
+  const auto r1s = util::uniform_unit_vec<T>(velocities_.size());
+  const auto r2s = util::uniform_unit_vec<T>(velocities_.size());
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
-    const auto r1 = util::uniform_unit<T>();
-    const auto r2 = util::uniform_unit<T>();
+    const auto r1 = r1s[i];
+    const auto r2 = r2s[i];
     for (std::size_t j = 0; j < dim_; ++j) {
       velocities_[i][j] =
           velocities_[i][j] * omega_ +
@@ -145,7 +135,9 @@ void Particles<T>::UpdateVelocitiesSequential() noexcept {
 
 template <typename T>
 void Particles<T>::UpdateVelocitiesParallel() noexcept {
-#pragma omp parallel for
+  //const auto r1s = util::uniform_unit_vec<T>(velocities_.size());
+  //const auto r2s = util::uniform_unit_vec<T>(velocities_.size());
+#pragma omp parallel for schedule(auto)
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
     const auto r1 = util::uniform_unit<T>();
     const auto r2 = util::uniform_unit<T>();
@@ -161,28 +153,21 @@ void Particles<T>::UpdateVelocitiesParallel() noexcept {
 }
 
 template <typename T>
-void Particles<T>::UpdateVelocitiesAVX() noexcept {}
-
-template <typename T>
 void Particles<T>::UpdatePositionsSequential() noexcept {
   T best_fitness = fitness_(gbest_);
   for (std::size_t i = 0; i < positions_.size(); ++i) {
     for (std::size_t j = 0; j < dim_; ++j) {
       positions_[i][j] += velocities_[i][j];
-      if (positions_[i][j] > x_max_) {
-        positions_[i][j] -= positions_[i][j] - x_max_;
-        velocities_[i][j] *= -1.0;
-      }
     }
 
     // Maintain local best position and gbest
     const T fitness = fitness_(positions_[i]);
     if (fitness < fitness_(best_positions_[i])) {
       best_positions_[i] = positions_[i];
-    }
-    if (fitness < best_fitness) {
-      gbest_ = positions_[i];
-      best_fitness = fitness;
+      if (fitness < best_fitness) {
+	gbest_ = positions_[i];
+	best_fitness = fitness;
+      }
     }
   }
 }
@@ -190,35 +175,26 @@ void Particles<T>::UpdatePositionsSequential() noexcept {
 template <typename T>
 void Particles<T>::UpdatePositionsParallel() noexcept {
   T best_fitness = fitness_(gbest_);
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for schedule(auto) collapse(2)
   for (std::size_t i = 0; i < positions_.size(); ++i) {
     for (std::size_t j = 0; j < dim_; ++j) {
       positions_[i][j] += velocities_[i][j];
-      if (positions_[i][j] > x_max_) {
-        positions_[i][j] -= positions_[i][j] - x_max_;
-        velocities_[i][j] *= -1.0;
-      }
-    }
+     }
   }
-#pragma omp parallel for
+#pragma omp parallel for schedule(auto)
   for (std::size_t i = 0; i < positions_.size(); ++i) {
     // Maintain local best position and gbest
     const T fitness = fitness_(positions_[i]);
     if (fitness < fitness_(best_positions_[i])) {
       best_positions_[i] = positions_[i];
     }
-    if (fitness < best_fitness) {
 #pragma omp critical
-      if (fitness < best_fitness) {
-        gbest_ = positions_[i];
-        best_fitness = fitness;
-      }
+    if (fitness < best_fitness) {
+      gbest_ = positions_[i];
+      best_fitness = fitness;
     }
   }
 }
-
-template <typename T>
-void Particles<T>::UpdatePositionsAVX() noexcept {}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
