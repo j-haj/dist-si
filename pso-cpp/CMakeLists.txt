@@ -6,7 +6,8 @@ find_package(OpenMP REQUIRED)
 set(SRC_DIR "${PROJECT_SOURCE_DIR}/src")
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -O3 ")
+set(CMAKE_CXX_COMPILER "/usr/bin/g++-8")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -Ofast -flto -funroll-loops -mavx2 -fopenmp -march=native")
 
 include_directories(${SRC_DIR})
 

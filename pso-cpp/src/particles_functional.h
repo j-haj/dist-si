@@ -7,6 +7,8 @@
 #include <iostream>
 #include <vector>
 
+#include <omp.h>
+
 #include "particle_update_mode.h"
 #include "util.h"
 
@@ -73,7 +75,6 @@ class ParticlesFunctional {
       case ParticleUpdateMode::Parallel:
         UpdatePositionsParallel();
         break;
-
     }
   }
 
@@ -100,7 +101,7 @@ class ParticlesFunctional {
   void UpdateVelocity(std::vector<T>& velocity,
 		      const std::vector<T>& best_pos,
 		      const std::vector<T>& current_pos) noexcept;
-
+  
   ParticleUpdateMode mode_;
   std::size_t n_particles_;
   std::size_t dim_;
@@ -126,13 +127,15 @@ void ParticlesFunctional<T>::UpdateVelocity(std::vector<T>& velocity,
 					    const std::vector<T>& current_pos) noexcept {
   const auto r1 = util::uniform_unit<T>();
   const auto r2 = util::uniform_unit<T>();
+  auto v = velocity;
   for (std::size_t i = 0; i < dim_; ++i) {
-    velocity[i] = velocity[i] * omega_ +
-      c1_ * r1 * (best_pos[i] - current_pos[i]) +
+    v[i] *= omega_;
+    v[i] +=  c1_ * r1 * (best_pos[i] - current_pos[i]) +
       c2_ * r2 * (gbest_[i] - current_pos[i]);
     // Clamp velocity
-    velocity[i] = std::min(std::max(v_min_, velocity[i]), v_max_);
+    v[i] = std::min(std::max(v_min_, v[i]), v_max_);
   }
+  velocity = v;
 }
 
 template <typename T>
@@ -144,7 +147,7 @@ void ParticlesFunctional<T>::UpdateVelocitiesSequential() noexcept {
 
 template <typename T>
 void ParticlesFunctional<T>::UpdateVelocitiesParallel() noexcept {
-#pragma omp parallel for schedule(runtime)
+#pragma omp parallel for
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
     UpdateVelocity(velocities_[i], best_positions_[i], positions_[i]);
   }
@@ -153,12 +156,9 @@ void ParticlesFunctional<T>::UpdateVelocitiesParallel() noexcept {
 template <typename T>
 void ParticlesFunctional<T>::UpdatePosition(std::vector<T>& pos,
 					    std::vector<T>& v) noexcept {
+
   for (std::size_t i = 0; i < dim_; ++i) {
     pos[i] += v[i];
-    if (pos[i] > x_max_) {
-      pos[i] -= (pos[i] - x_max_);
-      v[i] *= -1.0;
-    }
   }
 }
 
@@ -182,18 +182,22 @@ void ParticlesFunctional<T>::UpdatePositionsSequential() noexcept {
 
 template <typename T>
 void ParticlesFunctional<T>::UpdatePositionsParallel() noexcept {
-  T best_fitness = fitness_(gbest_);
-#pragma omp parallel for schedule(runtime)
+#pragma omp parallel for
   for (std::size_t i = 0; i < positions_.size(); ++i) {
     UpdatePosition(positions_[i], velocities_[i]);
-  
+  }
+
+  T best_fitness = fitness_(gbest_);
+#pragma omp parallel for
+
+  for (std::size_t i = 0; i < positions_.size(); ++i) {
     // Maintain local best position and gbest
     const T fitness = fitness_(positions_[i]);
     if (fitness < fitness_(best_positions_[i])) {
       best_positions_[i] = positions_[i];
     }
     if (fitness < best_fitness) {
-#pragma omp critical
+  #pragma omp critical
       if (fitness < best_fitness) {
 	gbest_ = positions_[i];
 	best_fitness = fitness;

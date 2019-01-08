@@ -31,7 +31,7 @@ class Particle {
       : current_pos_(util::uniform_rand_vec<T>(1, 0, 1)),
         local_best_pos_(current_pos_),
         velocity_(std::vector<T>()),
-        fitness_([](const std::vector<T>& p) { return static_cast<T>(0); }),
+	fitness_([](const std::vector<T>& p) { return static_cast<T>(p.size()); }),
         x_min_(0),
         x_max_(0),
         v_min_(0),
@@ -96,11 +96,6 @@ template <typename T>
 void Particle<T>::UpdatePosition() noexcept {
   for (std::size_t i = 0; i < velocity_.size(); ++i) {
     current_pos_[i] += velocity_[i];
-    // Reflect positions beyond boundary
-    if (current_pos_[i] > x_max_) {
-      current_pos_[i] -= current_pos_[i] - x_max_;
-      velocity_[i] *= -1.0;
-    }
   }
   if (fitness_(current_pos_) < fitness_(local_best_pos_)) {
     local_best_pos_ = current_pos_;
