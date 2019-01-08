@@ -8,9 +8,11 @@
 \usepackage[outdir=./]{epstopdf}
 \usepackage{graphicx}
 \usepackage{listings}
+\usepackage[sort]{natbib}
 \usepackage{setspace}
-
+\title{Cache-aware Parallel Particle Swarm Optimization}
 \doublespacing
+
 \lstset{
   language=C++,
   basicstyle=\ttfamily\footnotesize,
@@ -22,12 +24,13 @@
 }
 
 \begin{document}
+\maketitle
 \begin{abstract}
   \input{../abstract/abstract_body.tex}
 \end{abstract}
 
 \input{../gecco-19/efficientbody.tex}
 
-\bibliographystyle{acm}
-\bibliography{../gecco-19/bibliography}
+\bibliographystyle{natbib}
+\bibliography{../gecco-19/bibliography.bib}
 \end{document}
