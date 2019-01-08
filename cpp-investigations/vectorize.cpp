@@ -95,17 +95,19 @@ void run_experiment(vector<vector<T>>& xs, const vector<vector<T>>& v1s,
 
 int main() {
   using T = double;
-  std::size_t N = 10000;
+  std::size_t N = 100000;
   auto xs1 = random_vectors<T>(N);
   auto xs2(xs1);
   auto v1s = random_vectors<T>(N);
   auto v2s = random_vectors<T>(N);
   auto v3s = random_vectors<T>(N);
-
-
   omp_set_num_threads(4);
+#pragma omp parallel
+  {
   auto n_threads = omp_get_num_threads();
   std::cout << "Running on " << n_threads << " threads\n";
+  }
+
   run_experiment<T>(xs1, v1s, v2s, v3s);
   
   return 0;
