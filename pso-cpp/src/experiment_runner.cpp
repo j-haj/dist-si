@@ -13,6 +13,20 @@ enum class RunType {
   Parallel,
 };
 
+double average(const std::vector<double>& v) {
+  return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+}
+
+double std_dev(const std::vector<double>& v) {
+  auto sum = 0.0;
+  const auto avg = average(v);
+  for (const auto x : v) {
+    const auto d = avg - x;
+    sum += d * d;
+  }
+  return std::sqrt(sum/(v.size() - 1));
+}
+
 int main() {
   using type_t = double;
   type_t omega = 1.8;
@@ -22,10 +36,13 @@ int main() {
   type_t x_max = 50.0;
   type_t v_min = -50.0;
   type_t v_max = 50.0;
-  std::size_t n_particles = 1000;
-  std::size_t dim = 250;
+
+  // Params
+  std::size_t n_particles = 10000;
+  std::size_t dim = 500;
   RunType run_type = RunType::Sequential;
-  
+  bool verbose = false;
+
   ParticleUpdateMode particle_update_mode;
   RunMode run_mode;
   switch (run_type) {
@@ -80,39 +97,43 @@ int main() {
   std::vector<double> soa_times(n_experiments);
   std::vector<double> soa_functional_times(n_experiments);
   std::vector<double> aos_times(n_experiments);
+  int completed = 0;
+  std::vector<double> round_times;
   for (int i = 0; i < n_experiments; ++i) {
-    std::cout << "SoA... ";
     SoAExperiment<Particles, double>
       soa_experiment(fitness, particle_update_mode,
 		     x_min, x_max, v_min, v_max, n_particles,
 		     dim, omega, c1, c2);
     soa_times[i] = soa_experiment.Run(max_steps, solution, epsilon);
-    std::cout << soa_times[i] << "s\n";
-    std::cout << "SoA functional...";
     SoAExperiment<ParticlesFunctional, double>
       soa_functional_experiment(fitness, particle_update_mode,
 				x_min, x_max, v_min, v_max, n_particles,
 				dim, omega, c1, c2);
     soa_functional_times[i] = soa_functional_experiment.Run(max_steps, solution,
 							    epsilon);
-    std::cout << soa_functional_times[i] << "s\n";
-    std::cout << "AoS...";
     AoSExperiment<double> aos_experiment(fitness, run_mode, x_min, x_max,
 					 v_min, v_max, n_particles, dim, omega, c1,
 					 c2);
     aos_times[i] = aos_experiment.Run(max_steps, solution, epsilon);
-    std::cout << aos_times[i] << "s\n";
+    if (verbose) {
+      std::cout << "SoA: " << soa_times[i] << '\n'
+		<< "SoAf: " << soa_functional_times[i] << '\n'
+		<< "AoS: " << aos_times[i] << '\n';
+    }
+    ++completed;
+    round_times.push_back(soa_times[i] + soa_functional_times[i] + aos_times[i]);
+    auto avg = average(round_times);
+    std::cout << "Completed " << completed << " of " << n_experiments << " rounds.\n"
+	      << "Average round time: " << avg << "s\n"
+	      << "Approximate time remaining: " << avg * (n_experiments - completed)
+	      << "s\n\n";
   }
 
-  const auto soa_avg = std::accumulate(soa_times.begin(),
-				       soa_times.end(), 0.0) / n_experiments;
-  const auto soa_func_avg = std::accumulate(soa_functional_times.begin(),
-					    soa_functional_times.end(), 0.0) / n_experiments;
-  const auto aos_avg = std::accumulate(aos_times.begin(),
-				       aos_times.end(), 0.0) / n_experiments;
-  std::cout << "Done.\nStruct of Arrays\n\ttime (s): " << soa_avg
-	    << "\nStruct of Arrays - Functional\n\ttime (s): " << soa_func_avg
-	    << "\nArray of Structs\n\ttime (s): " << aos_avg
-	    << "\n\nAoS / SoA = " << aos_avg / soa_avg << '\n';
+  std::cout << "Done.\nStruct of Arrays\n\tavg (s): " << average(soa_times)
+	    << "\n\tstd dev (s): " << std_dev(soa_times)
+	    << "\nStruct of Arrays - Functional\n\tavg (s): " << average(soa_functional_times)
+	    << "\n\tstd dev (s): " << std_dev(soa_functional_times)
+	    << "\nArray of Structs\n\tavg (s): " << average(aos_times)
+	    << "\n\tstd dev (s): " << std_dev(aos_times) << '\n';
   return 0;
 }

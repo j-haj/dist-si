@@ -117,11 +117,11 @@ class Particles {
 
 template <typename T>
 void Particles<T>::UpdateVelocitiesSequential() noexcept {
-  const auto r1s = util::uniform_unit_vec<T>(velocities_.size());
-  const auto r2s = util::uniform_unit_vec<T>(velocities_.size());
+  //const auto r1s = util::uniform_unit_vec<T>(velocities_.size());
+  //const auto r2s = util::uniform_unit_vec<T>(velocities_.size());
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
-    const auto r1 = r1s[i];
-    const auto r2 = r2s[i];
+    const auto r1 = util::uniform_unit<T>();
+    const auto r2 = util::uniform_unit<T>();
     for (std::size_t j = 0; j < dim_; ++j) {
       velocities_[i][j] =
           velocities_[i][j] * omega_ +
