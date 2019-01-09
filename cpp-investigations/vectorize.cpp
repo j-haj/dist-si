@@ -101,11 +101,12 @@ int main() {
   auto v1s = random_vectors<T>(N);
   auto v2s = random_vectors<T>(N);
   auto v3s = random_vectors<T>(N);
-
-
+#pragma omp parallel
   omp_set_num_threads(12);
   auto n_threads = omp_get_num_threads();
   std::cout << "Running on " << n_threads << " threads\n";
+  }
+
   run_experiment<T>(xs1, v1s, v2s, v3s);
   
   return 0;

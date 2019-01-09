@@ -194,10 +194,17 @@ the placement of the random weights $r_1$ and $r_2$. The generation of these
 values vary throughout the literature. We found using the same random values for
 every component of the velocity vector and sampilng new values each time the
 velocity vector is encountered provided the best trade-off. Sampling too often
-is expensive while sampling too infrequently slows convergence.
+is expensive while sampling too infrequently slows convergence due to a lack of
+diversity in search directions.
 
 \paragraph{Auto-vectorization}
-The difference between Figure REF and Figure REF is pulling the
+The difference between Figure \ref{fig:naive-par} and Figure
+\ref{fig:efficient-par} is pulling the inner loop into a separate function. This
+allows the compiler to more easily optimize that piece of code by making the
+relationship between the different vectors clear -- there is no pointer aliasing
+between \texttt{i} values. In our experiments, for simple loops like this it is
+difficult to beat the compiler by hand-writing AVX instructions, especially
+without domain expertise in writing efficient, low-level code.
 
 \begin{algorithm}
   \caption{Cache-aware parallel PSO}\label{alg:par-pso}
