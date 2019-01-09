@@ -1,5 +1,5 @@
 set terminal eps
-set output "rastrigin.dps"
+set output "output/rastrigin.eps"
 
 set xrange [-1.5:1.5]
 set yrange [-1.5:1.5]

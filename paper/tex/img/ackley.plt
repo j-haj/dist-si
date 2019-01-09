@@ -1,5 +1,5 @@
 set terminal eps
-set output "ackley.dps"
+set output "output/ackley.eps"
 
 set xrange [-2:2]
 set yrange [-2:2]
