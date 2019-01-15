@@ -1,42 +1,51 @@
 \section{Introduction}
-Particle Swarm Optimization (PSO) \cite{pso} is an optimization technique commonly used for
-finding the global optimum of a nonlinear function. PSO work by emulating swarms
-that occur in nature (e.g., a flock of birds) such that each particle searches
-locally in the direction of its best seen position as well as the best seen
-position of the swarm. The swarm maintains a global best position (the position
+Particle Swarm Optimization (PSO) \cite{pso} is a global optimization technique
+inspired by swarms found in nature (e.g., a flock of birds).
+Each particle in the swarm moves in a partially stochastically weighted
+combination of two vectors: one in the direction of the best location the
+particle has seen locally and one in the direction of the best location seen by
+the swarm globally. Here the term ``best'' is with respect to a fitness
+function, which is specified in the problem defintiion.
+The swarm maintains a global best position (the position
 with the optimal fitness value) and the goal is for this global best position to
 quickly converge to the global minimum (maximum) of the nonlinear function being
 optimized.  The challenge comes in the form of required compute power -- due to
 the curse of dimensionality, a high-dimensional problem requires a large number
-of particles. Efficient algorithm design coupled with efficient implementation
-is essential for handling large simulations of particles. In the authors'
+of particles. While improved hardware and harware accelerator performance can
+greatly improve runtime performance, we have found that efficient algorithm
+design coupled with efficient implementation can make similar, if not improved
+gains in performance. In the authors'
 personal experience, making a heap allocation in the wrong spot or even
 something as simple as generating a random number in the wrong location can
 increase the runtime of a simulation $1000\times$.\\
 The contributions of this work are:
+
 \begin{enumerate}
-\item An improved cache-efficient algorithm for parallel PSO
-\item A general framework for writing efficient PSO implementations
+\item An improved cache-efficient algorithm for parallel PSO. In our
+  experiments, this improved algorithm obtains $N\times$ speed-ups over the
+  naive parallelization of the cache-efficient algorithm introduce in
+  \cite{cache-pso}.
+\item A general framework to guide the creation of efficient PSO implementations
 \end{enumerate}
 
 While there is a large body of work on parallel PSO using various threading
-techniques or even GPGPU programming, the goal of our work is to provide a set
+techniques and GPGPU programming, the goal of our work is to provide a set
 of techniques, tools, and modifications to the standard cache-efficient PSO
-algorithm that are simple to understand and use. The average user of a PSO
-algorithm likely does not have the specialized knowledge to write an efficient
+algorithm that are simple to understand and use. That is, our goal is not to
+write the fastest, most optimzal PSO implementation but rather write a PSO
+implementation that is optimal in the ratio of speed to programmer time.
+The average PSO implementor
+likely does not have the specialized knowledge requried to write an efficient
 CUDA implementation or to implement efficient management and coordination of
 threads. Rather than provide a highly specialized implementation, we focus on
-simplicity. For parallelism, we utilize OpenMP. We also demonstrate that while
-custom written vectorized code can often be hard to beat, utilizing
-auto-vectorization through the compiler along with well designed code can be
-nearly as effective without requiring specialized knowledge or low-level
-programming.
+simplicity and clarity while still improving performance. For parallelism, we
+utilize OpenMP. We leave the distributed implementation for a future work.
 
-The organization of the paper is as follows. In section \ref{sec:pso} we give a
+The organization of the paper is as follows. In Section \ref{sec:pso} we give a
 breif overview of PSO, followed by an overview of cache-aware algorithms and the
-challenges encountered in parallel algorithms in secion \ref{sec:cache}. We
+challenges encountered in parallel algorithms in Section \ref{sec:cache}. We
 present our updated PSO algorithm and implementation guidelines in section
-\ref{sec:algo} followed by experimental results in section \ref{sec:results}.
+\ref{sec:algo} followed by experimental results in Section \ref{sec:results}.
 
 \section{Particle Swarm Optimization}\label{sec:pso}
 Particle Swarm Optimization can be simplified into the update of two formulas:
@@ -48,10 +57,13 @@ the current position of the given particle. The update formula for velocity is
 given by equation (\ref{eq:velocity} and Table \ref{tab:constants} describes
 the interpretation of the constants.
 
-\begin{multline}\label{eq:velocity}
-  v_i(t+1) = \omega v_i (t) + c_1 r_1 (\textbf{pbest}_i(t) - \textbf{p}_i(t)) \\
-  + c_2 r_2 (\textbf{gbest}_i(t) - \textbf{p}_i(t))
-\end{multline}
+\begin{align}
+  \textbf{v}_i(t+1) = \omega \textbf{v}_i (t) & +
+                                                c_1 r_1 (\textbf{pbest}_i(t) -
+                                                \textbf{p}_i(t))
+  \\\label{eq:velocity}
+  &+ c_2 r_2 (\textbf{gbest}_i(t) - \textbf{p}_i(t))\nonumber
+\end{align}
 
 Once the velocity is computed, the position update is given by equation
 (\ref{eq:position}).
@@ -99,9 +111,54 @@ of its prior value and setting the particle position to the boundary value.
 Our implementation allows for a predefined minimum and maximum value for
 components of the velocity vector -- in practice these should be no greater than
 the diameter of the search space.
+\section{Prior Work}
+There is a large body of work studying the parallelization of PSO. This work can
+be broadly broken up into two categories: OpenMP/MPI based methodoligies and
+GPGPU based methodoligies (typically via CUDA). The advantage of the OpenMP/MPI
+approach is flexibility in parallelization due to the difference in
+architecture. GPGPU approaches are more restricted due to the GPU architecture
+-- branching in works groups in a GPU can dramatically reduce performance.
+
+The most common approach to parallelizing PSO is through the use of
+sub-swarms. Each sub-swarm is assigned to a thread and sub-swarms share the
+sub-swarm best amongst other swarms as a way to communicate
+\textbf{gbest}. Many \cite{cooppso, comppso, optionpso}
+build the sub-swarm implementation with OpenMP and MPI. Peng et
+al. \cite{multicore-pso} also investigate the sub-swarm approach to
+parallelization but explore several different swarm communication topoligies and
+use Java threading rather than OpenMP and MPI. All works achieve similar linear
+speed-ups at low thread counts ($<20$).
+
+The other main approach to parallelizing PSO is via GPGPU programming. The
+challenge with GPGPU programming is two-fold: minimizing communication between
+the GPU and CPU, which is costly, and avoiding branching within the GPU
+kernel. When grouped threads within a GPU start to diverge due to branching, the
+GPU executes threads on the same branch and block threads on all different
+branches. This can be difficult to avoid in the PSO algorithm where a core part
+of the aglorithm is finding the globally optimal particle. To get around this,
+some work \cite{gpu-ppso, gpu-pso} uses the GPU primarily for evaluating the
+fitness function in bulk across all particles.
+Others, such as Calazan et al. \cite{swarmgrid}, perform the entirety of
+the PSO algorithm on the GPU, transferring data from the CPU to the GPU at the
+beginning of the algorithm and then transferring the data back to the CPU from
+the GPU at the end of the algorithm.
+CONTINUE \cite{biopsogpu, multiswarmpso-gpu}
+
+Other recent work \cite{mrcpso, mprso, coop-pso, intrusion-pso} has
+studied the use of the MapReduce framework \cite{mapreduce} in parallelizing PSO
+for various applications. In most experiments, these works see near linear
+scaling with number of nodes added in the MapReduce cluster. This work is worth
+mentioning, but it is not a director competitor to our work or that of the GPGPU
+implementations. Instead, the MapReduce implementations serve as a complementary
+approach where each node in the MapReduce cluster can run an OpenMP and/or
+GPGPU-based algorithm. Improvements to the CPU and GPU PSO algorithms directly
+flow into the work of the MapReduce-based algorithms. A similar approach of
+MapReduce-based coarse-grain parallelism managing models with fine-grained
+parallelism is being investigated by the deep learning community \cite{mrpnn,
+  heterospark, dlspark}. 
 
 \section{Cache-aware Design}\label{sec:cache}
-Modern \texttt{x86\_64} CPUs typically have three tiers of cache: L1, L2, and
+Modern x86\_64 CPUs typically have three tiers of cache: L1, L2, and
 L3. L1 cache is the fastest but has the smallest amount of storage. The caches
 decrease in speed and increase in storage as one descends the cache
 hierarchy. When data is loaded into a register the first step is to check the
@@ -183,19 +240,56 @@ object took up an entire cache line.
   \end{algorithmic}
 \end{algorithm}
 
-\section{Cache-aware, Parallel PSO}\label{sec:algo}
+\section{Cache-aware Parallel PSO}\label{sec:algo}
 We make several improvements to the framework for cache-efficient PSO proposed
 in \cite{cache-pso}. While none of these improvements is a major structural
 change to the algorithm of PSO or the data-oriented design, we found that the
 net effect was a dramatic improvement in performance.
 
 \paragraph{Random Weights} One of the major speed-ups we achieved was through
-the placement of the random weights $r_1$ and $r_2$. The generation of these
-values vary throughout the literature. We found using the same random values for
-every component of the velocity vector and sampilng new values each time the
-velocity vector is encountered provided the best trade-off. Sampling too often
-is expensive while sampling too infrequently slows convergence due to a lack of
-diversity in search directions.
+the generation of the random weights $r_1$ and $r_2$. In the naive
+implementation, extended from \cite{cache-pso}, $r_1$ and $r_2$ are generated
+for each particle update. We modified this approach to batch the random number
+generation into two vectors of $r_1$ and $r_2$ values and then index these as we
+update the particles. There are two advantages to this approach: we can keep
+these random values in cache and we avoid expensive calls to random number
+generation routines. This can be seen in Figures \ref{fig:naive-par} and
+\ref{fig:efficient-par} -- the naive approach makes two calls to
+\texttt{random\_uniform} for each particle. On the other hand, the efficient
+approach indexes the $r$-value vectors \texttt{r1s} and \texttt{r2s}.
+
+\paragraph{Reducing Critical Section Contention} Updating \texttt{gbest}
+requires checking all particles against the current \texttt{gbest} and updating
+when a position with a better fitness value is found. This is a classic
+reduction scenario, which can be done in $O(\lg n)$ time. OpenMP provides the
+facilities to hanlde this efficiently, but only for a few simple types and
+operations. Unforutnately, these do include \texttt{std::vector<T>}. To get
+around this we do a linear scan of all particles in parallel. The main issue
+to overcome is the data race that occurs when multiple threads attempt to
+update \texttt{gbest}. Figure \ref{fig:naive-update} shows an example of a
+standard use of OpenMP's \texttt{critical} section to avoid the data race. This
+reduces performance because the critical section is hit for every particle on
+every update. We get around this in Figure \ref{fig:efficient-update}, where we
+first check if the update is possible and, if so, attempt to enter the critical
+section. The intuition to this approach is that many particles are not the
+global best and will fail the first branch condition (line 4 of Figure
+\ref{fig:efficient-update}) and thus we greatly reduce the number of threads
+reaching the critical section. In practice we saw a large performance gain from
+this simple trick.
+
+\begin{figure}
+  \lstinputlisting{../code/efficient_update.cpp}
+  \caption{Efficient update in a critical section for the efficient parallel PSO
+    algorithm.}
+  \label{fig:efficient-update}
+\end{figure}
+
+\begin{figure}
+  \lstinputlisting{../code/naive_update.cpp}
+  \caption{Naive update in a critical section for the naive parallel PSO
+    algorithm.}
+  \label{fig:naive-update}
+\end{figure}
 
 \paragraph{Auto-vectorization}
 The difference between Figure \ref{fig:naive-par} and Figure
@@ -255,10 +349,60 @@ without domain expertise in writing efficient, low-level code.
 \end{figure}
 
 \section{Results}\label{sec:results}
-We test our algorithm on both the Rastrigin \cite{rastrigin} and Ackley \cite{ackley} functions
-in high dimensions. The three-dimensional plots of these functions are given in Figures
-\ref{fig:rastrigin} and \ref{fig:ackley}, respectively.  The goals fo the
-experiments are:
+\begin{table}
+  \centering
+  \caption{Test functions used in experiments.}\label{tab:functions}
+  \begin{tabular}{ll}\toprule
+    \textbf{Name} & \textbf{Function}\\\midrule
+    Ackley & $-20\exp(-0.2\sqrt{\frac{1}{n}\sum_ix_i^2}) -
+             \exp(\frac{1}{n}\sum_i\cos(2\pi x_i) + e + 20$\\
+    Quadratric & $\sum_i x_i^2$\\
+    Rastrigin & $10n + \sum_{i=1}^n(x_i^2 - 10\cos(2\pi x - i))$\\\bottomrule
+  \end{tabular}
+\end{table}
+We test our algorithm on several popular test functions in optimization
+\cite{testprobs} the the quadratic, Rastrigin
+\cite{rastrigin}, and Ackley \cite{ackley} functions, shown in Table
+\ref{tab:functions} generalized to $\mathbb{R}^n$. All of these functions have
+the property that their minimum is attained at the origin with a value of
+$0$, which makes assessing the models easy. Three-dimensional plots of the
+Rastrigin and Ackley functions are shown in figures \ref{fig:rastrigin} and
+\ref{fig:ackley}, respectively.
+All experiments were run on a single
+workstation with a 6-core, 3.6 GHz Intel i7-6800K processor with 64GB of RAM. We
+used six threads in OpenMP rather than 12 to reduce context switching.
+The three-dimensional plots of these functions are given in Figures
+\ref{fig:rastrigin} and \ref{fig:ackley}, respectively. Table \ref{tab:param}
+gives the hyperparameters used in the experiements. These were chosen based on
+the recommended values from \cite{spso}.
+
+\begin{table}
+  \centering
+  \caption{Hyperparamters used in the experiements.}\label{tab:param}
+  \begin{tabular}{lc}\toprule
+    \textbf{Parameter} & \textbf{Value}\\\midrule
+    $c_1$ & $2.05 \chi$\\
+    $c_2$ & $2.05 \chi$\\
+    $\omega$ & $\chi$\\
+    $\chi$ & $\frac{2}{2.1 + \sqrt{4.1}}$\\\bottomrule
+    \end{tabular}
+\end{table}
+
+As disccused in \cite{spso}, it is easy to unintentionally bias experimental
+results when testing a PSO algorithm by using a uniform distribution over the
+search space. One could make the argument that this is what would be done in
+practice and thus should be done in experiments. However, this practice gives a
+result that is better than worst-case. It's likely that some particles will be
+initialized near the global minimum and thus result in faster and better
+convergence to the global minimum. To avoid this, we initialize all particles
+such that they are in the outer 75\% of the search space. In otherwords, if the
+maximum distance from the origin in a dimension is $x_{\max}$, then the
+initial position of the particle in that dimension is sampled from the
+distribution $U(.25 x_{\max}, x_{\max})$. Since all of our test functions have
+their global minimum at the origin, this initialization scheme allows us to
+better measure the effectiveness of our algorithms.
+
+The goals fo the experiments are:
 \begin{enumerate}
   \item Investigate the relationship between dimension and number of particles
     with respect to performance of the cache-aware parallel implementation to

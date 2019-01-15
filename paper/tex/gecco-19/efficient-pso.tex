@@ -4,12 +4,15 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
 
 \usepackage{booktabs} % For formal tables
 \usepackage[outdir=./]{epstopdf}
 \usepackage{graphicx}
 \usepackage{listings}
-
+\usepackage{setspace}
+\doublespacing
 \lstset{
   language=C++,
   basicstyle=\ttfamily\footnotesize,
@@ -51,18 +54,13 @@
 
 
 \begin{document}
-\title{Cache-efficient Parallel Particle Swarm Optimization}
-\titlenote{Produces the permission block, and
-  copyright information}
-
-\subtitlenote{The full version of the author's guide is available as
-  \texttt{acmart.pdf} document}
+\title{Cache-Aware Parallel Particle Swarm Optimization}
 
 %%% The submitted version for review should be ANONYMOUS
 \author{Jeff Hajewski}
 \orcid{1234-5678-9012}
 \affiliation{%
-  \institution{University of Iowa\\Department of Computer Science}
+  \institution{University of Iowa\\ Department of Computer Science}
   \city{Iowa City} 
   \state{Iowa} 
   \postcode{52242}
@@ -71,7 +69,7 @@
 
 \author{Suely Oliveira}
 \affiliation{%
-  \institution{University of Iowa\\Department of Computer Science}
+  \institution{University of Iowa\\ Department of Computer Science}
   \city{Iowa City}
   \state{Iowa} 
   \postcode{52242}
