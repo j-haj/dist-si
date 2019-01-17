@@ -13,8 +13,11 @@ void UpdateVelocity(std::vector<T>& v,
 
 template <typename T>
 void UpdateVelocities() {
+  const auto r1s = util::rand_unit_vec(velocities.size());
+  const auto r2s = util::rand_unit_vec(velocities.size());
 #pragma omp parallel for schedule(static)
   for (std::size_t i = 0; i < velocities.size(); ++i) {
-    UpdateVelocity(v[i], pos[i], bpos[i], gbest, r1s[i], r2s[i]);
+    UpdateVelocity(v[i], pos[i], bpos[i],
+		   gbest, r1s[i], r2s[i]);
   }
 }

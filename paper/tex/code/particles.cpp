@@ -1,5 +1,5 @@
 template <typename T>
-struct  Particles {
+struct  ParticleSystem {
   using vecT = std::vector<T>;
   std::vector<vecT> positions;
   std::vector<vecT> best_positions;
