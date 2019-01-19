@@ -20,14 +20,15 @@ something as simple as generating a random number in the wrong location can
 increase the runtime of a simulation $1000\times$.\\
 The contributions of this work are:
 
-\begin{enumerate}
+\begin{itemize}
 \item An improved cache-efficient algorithm for parallel PSO. In our
   experiments, this improved algorithm obtains $N\times$ speed-ups over the
   naive parallelization of the cache-efficient algorithm introduce in
   \cite{cache-pso}.
 \item A technique for reducing critical section contention in OpenMP
+\item Confirm the prior work of \cite{cache-pso}
 
-\end{enumerate}
+\end{itemize}
 
 While there is a large body of work on parallel PSO using various threading
 techniques and GPGPU programming, the goal of our work is to provide a set
@@ -313,6 +314,7 @@ do so at the cost of a reduced rate of convergence. Similar to the prior section
 on the random weights, the convergence of the swarm is reduced, but the overall
 runtime performance is increased.
 
+
 \begin{figure}
   \lstinputlisting{../code/efficient_update.cpp}
   \caption{Efficient update in a critical section for the efficient parallel PSO
@@ -406,7 +408,7 @@ Rastrigin and Ackley functions are shown in figures \ref{fig:rastrigin} and
 \ref{fig:ackley}, respectively.
 All experiments were run on a single
 workstation with a 6-core, 3.6 GHz Intel i7-6800K processor with 64GB of RAM. We
-used six threads in OpenMP rather than 12 to reduce context switching.
+used six threads in OpenMP, rather than 12 hyperthreads, to reduce context switching.
 Table \ref{tab:param}
 gives the hyperparameters used in the experiements. These were chosen based on
 the recommended values from \cite{pso-convergence, spso} -- the advantage of
@@ -433,8 +435,7 @@ distributions have their optimums at the origin, moving to a higher dimensional
 space means that particles randomly intialized from a uniform distribution will
 cluster towards the outer edges of the search space (see, for example, ``curse
 of dimensionality'' \cite{hastie}). Empirically, in $\mathbb{R}^{10}$, the
-probability a point being randomly initialized within $\text{diam}/2$ of the origin for a space with
-diameter $\text{diam}$ is 0.001 \%.
+probability a point being randomly initialized within $\text{diam}/2$ of the origin is 0.1 \%.
 We verified this experimentally and found no
 impact to runtime when sampling initial positions from $U(x_{\min}, x_{\max})$
 and from $U((x_{\min},\lambda x_{\min})\cup(\lambda x_{\max}, x_{\max}))$.
@@ -446,6 +447,27 @@ The goals fo the experiments are:
     with respect to performance of the cache-aware parallel implementation to
     the object-oriented parallel implementation
 \end{enumerate}
+\begin{table}
+  \centering
+  \caption{Sequential speed-up with respect to Array of Structs design (dimension
+    75 with 500 particles.)}
+  \label{tab:seq-baseline}
+\begin{tabular}{llll}\toprule
+Structure       & Ackley & Rastrigin & Quadratic \\\midrule
+SoA             & 25.5\%  & 29.2\%     & 10.4\%     \\
+SoA - efficient & 44.7\%  & 46.2\%     & 57.0\%     \\\bottomrule
+\end{tabular}
+\end{table}
+
+Table \ref{tab:seq-baseline} shows the sequential speed-up with respect to the
+AoS design for 500 particles in $\mathbb{R}^{75}$. The SoA architecture as
+proposed in \cite{pso-cache} results in strong improvements of the AoS
+architecture. More interesting is the improvement of the SoA - efficient
+architecture. This is primarily due to compiler optimizations. Recall that the
+SoA - efficient design has three changes: (i) batched random number generation,
+(ii) reduced critical section contention (not applicable in the sequential
+case), and (iii) code that hints to the compiler that there is no
+aliasing. [REWORD].
 
 \begin{figure}
   \includegraphics[width=\columnwidth]{../img/output/rastrigin}
@@ -455,6 +477,20 @@ The goals fo the experiments are:
 \begin{figure}
   \includegraphics[width=\columnwidth]{../img/output/ackley}
   \caption{The Ackley function in three dimensions.}\label{fig:ackley}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\columnwidth]{../img/output/dim}
+  \caption{Results of the increasing dimension experiments with 1,000
+    particles.}
+  \label{fig:exp-dim}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=\columnwidth]{../img/output/N}
+  \caption{Results of increasing the number of particles for a fixed dimension
+    size of 100.}
+  \label{fig:exp-N}
 \end{figure}
 
 
