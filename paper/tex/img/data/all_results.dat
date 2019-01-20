@@ -1,0 +1,102 @@
+ackley - sequential
+Number of particles: 1000
+Dimension: 100
+Function: 
+AoS
+	time (s): 1043.51 +/- 40.2022
+	fitness: 1.663 +/- 0.513326
+	steps: 1e+06 +/- 0
+SoA
+	time (s): 779.546 +/- 30.9733
+	fitness: 1.63549 +/- 0.734671
+	steps: 1e+06 +/- 0
+SoAf
+	time (s): 588.423 +/- 21.8182
+	fitness: 1.72919 +/- 0.631595
+	steps: 1e+06 +/- 0
+
+rastrigin - sequential
+Number of particles: 2000
+Dimension: 100
+Function: 
+AoS
+	time (s): 2003.77 +/- 177.593
+	fitness: 171.68 +/- 39.5848
+	steps: 1e+06 +/- 0
+SoA
+	time (s): 1522.31 +/- 134.537
+	fitness: 196.803 +/- 44.6402
+	steps: 1e+06 +/- 0
+SoAf
+	time (s): 1144.19 +/- 130.962
+	fitness: 192.624 +/- 33.2966
+	steps: 1e+06 +/- 0
+
+quadratic - sequential
+Number of particles: 2000
+Dimension: 100
+Function: 
+AoS
+	time (s): 896.763 +/- 49.8272
+	fitness: 1.4417e-07 +/- 2.17986e-07
+	steps: 990654 +/- 25830
+SoA
+	time (s): 785.537 +/- 70.3781
+	fitness: 1.64565e-07 +/- 2.10897e-07
+	steps: 983973 +/- 53224.2
+SoAf
+	time (s): 389.722 +/- 17.7908
+	fitness: 1.19041e-07 +/- 1.62892e-07
+	steps: 991428 +/- 31712.1
+
+ackley - parallel
+Number of particles: 1000
+Dimension: 100
+Function: 
+AoS
+	time (s): 310.02 +/- 6.65476
+	fitness: 1.66717 +/- 0.749748
+	steps: 1e+06 +/- 0
+SoA
+	time (s): 236.437 +/- 26.9572
+	fitness: 1.50494 +/- 0.830196
+	steps: 1e+06 +/- 0
+SoAf
+	time (s): 148.803 +/- 30.3616
+	fitness: 1.94864 +/- 0.3918
+	steps: 1e+06 +/- 0
+
+rastrigin - parallel
+Number of particles: 1000
+Dimension: 100
+Function: 
+AoS
+	time (s): 296.802 +/- 0.589565
+	fitness: 191.828 +/- 47.1557
+	steps: 1e+06 +/- 0
+SoA
+	time (s): 209.531 +/- 0.287766
+	fitness: 169.839 +/- 24.4825
+	steps: 1e+06 +/- 0
+SoAf
+	time (s): 121.645 +/- 2.57043
+	fitness: 169.542 +/- 45.8353
+	steps: 1e+06 +/- 0
+
+quadratic - parallel
+Number of particles: 1000
+Dimension: 100
+Function: 
+AoS
+	time (s): 359.027 +/- 5.84281
+	fitness: 3.72193e-07 +/- 4.92218e-07
+	steps: 996204 +/- 12447.7
+SoA
+	time (s): 285.585 +/- 6.52917
+	fitness: 6.91049e-08 +/- 5.39836e-08
+	steps: 994878 +/- 22904.5
+SoAf
+	time (s): 56.4332 +/- 2.36744
+	fitness: 1.45143e-06 +/- 1.56728e-06
+	steps: 1e+06 +/- 0
+
