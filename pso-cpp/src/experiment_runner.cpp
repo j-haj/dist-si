@@ -1,5 +1,6 @@
 #include <cmath>
 #include <iostream>
+#include <sstream>
 
 #include <omp.h>
 
@@ -11,6 +12,12 @@
 enum class RunType {
   Sequential,
   Parallel,
+};
+
+enum class TestFunction {
+  Rastrigin,
+  Ackley,
+  Quadratic,
 };
 
 double average(const std::vector<double>& v) {
@@ -27,22 +34,64 @@ double std_dev(const std::vector<double>& v) {
   return std::sqrt(sum/(v.size() - 1));
 }
 
+struct SummaryStatistics {
+  SummaryStatistics(const std::vector<Result>& results)
+    : avg_time(0.0), dev_time(0.0), avg_fitness(0.0),
+      dev_fitness(0.0), avg_steps(0.0), dev_steps(0.0)
+  {
+    std::vector<double> times(results.size());
+    std::vector<double> fitnesses(results.size());
+    std::vector<double> steps(results.size());
+    for (std::size_t i = 0; i < results.size(); ++i) {
+      times[i] = results[i].time;
+      fitnesses[i] = results[i].fitness;
+      steps[i] = results[i].n_steps;
+    }
+    avg_time = average(times);
+    dev_time = std_dev(times);
+    avg_fitness = average(fitnesses);
+    dev_fitness = std_dev(fitnesses);
+    avg_steps = average(steps);
+    dev_steps = std_dev(steps);
+  }
+	       
+  double avg_time = 0.0;
+  double dev_time = 0.0;
+  double avg_fitness = 0.0;
+  double dev_fitness = 0.0;
+  double avg_steps = 0.0;
+  double dev_steps = 0.0;
+};
+
+void print_summary(const std::string& title, const SummaryStatistics& summary) {
+  const std::string pm = " +/- ";
+  std::cout << title;
+  std::cout << "\n\ttime (s): " << summary.avg_time << pm << summary.dev_time
+	    << "\n\tfitness: " << summary.avg_fitness << pm << summary.dev_fitness
+	    << "\n\tsteps: " << summary.avg_steps << pm << summary.dev_steps
+	    << std::endl;
+}
+
 int main() {
   using type_t = double;
-  type_t omega = 1.8;
-  type_t c1 = 1.0;
-  type_t c2 = 1.2;
-  type_t x_min = -50.0;
-  type_t x_max = 50.0;
-  type_t v_min = -50.0;
-  type_t v_max = 50.0;
+  const type_t chi = 2.0 / std::abs(2 - 4.1 - std::sqrt(4.1 * 4.1 - 4 * 4.1));
+  const type_t omega = chi;
+  const type_t c1 = 2.05;
+  const type_t c2 = 2.05;
+  const type_t x_min = -5.12;
+  const type_t x_max = 5.12;
+  const type_t v_min = 2 * x_min;
+  const type_t v_max = 2 * x_max;
+
 
   // Params
-  std::size_t n_particles = 10000;
-  std::size_t dim = 500;
-  RunType run_type = RunType::Sequential;
+  std::size_t n_particles = 1000;
+  std::size_t dim = 100;
+  RunType run_type = RunType::Parallel;
   bool verbose = false;
-
+  const auto max_steps = 1000000;
+  auto test_function = TestFunction::Quadratic;
+  
   ParticleUpdateMode particle_update_mode;
   RunMode run_mode;
   switch (run_type) {
@@ -83,20 +132,35 @@ int main() {
     auto sum1 = 0.0;
     auto sum2 = 0.0;
     for (const auto& x : p) {
-      sum1 += 0.5 * x * x;
-      sum2 += 0.5 * std::cos(pi * 2 * x);
+      sum1 += x * x;
+      sum2 += std::cos(pi * 2 * x);
     }
-    return -20 * std::exp(-0.2 * std::sqrt(sum1)) - std::exp(sum2) + std::exp(1) + 20;
+    return -20 * std::exp(-0.2 * std::sqrt(sum1/p.size())) - std::exp(sum2/p.size()) + std::exp(1) + 20;
   };
+  // Silence unused warning...
+  (void)quadratic;
+  (void)rastrigin;
+  (void)ackley;
 
-  auto fitness = rastrigin;
-  auto max_steps = 10000;
+  std::function<type_t(const std::vector<type_t>&)> fitness;
+  std::string func_name;
+  if (test_function == TestFunction::Quadratic) {
+    func_name == "Quadratic";
+    fitness = quadratic;
+  } else if (test_function == TestFunction::Rastrigin) {
+    func_name == "Rastrigin";
+    fitness = rastrigin;
+  } else if (test_function == TestFunction::Ackley) {
+    func_name == "Ackley";
+    fitness = ackley;
+  }
+
   type_t epsilon = 1e-8;
   int n_experiments = 20;
-  std::vector<type_t> solution(dim, 0.0);
-  std::vector<double> soa_times(n_experiments);
-  std::vector<double> soa_functional_times(n_experiments);
-  std::vector<double> aos_times(n_experiments);
+
+  std::vector<Result> soa_results(n_experiments);
+  std::vector<Result> soaf_results(n_experiments);
+  std::vector<Result> aos_results(n_experiments);
   int completed = 0;
   std::vector<double> round_times;
   for (int i = 0; i < n_experiments; ++i) {
@@ -104,24 +168,23 @@ int main() {
       soa_experiment(fitness, particle_update_mode,
 		     x_min, x_max, v_min, v_max, n_particles,
 		     dim, omega, c1, c2);
-    soa_times[i] = soa_experiment.Run(max_steps, solution, epsilon);
+    soa_results[i] = soa_experiment.Run(max_steps, epsilon);
     SoAExperiment<ParticlesFunctional, double>
       soa_functional_experiment(fitness, particle_update_mode,
 				x_min, x_max, v_min, v_max, n_particles,
 				dim, omega, c1, c2);
-    soa_functional_times[i] = soa_functional_experiment.Run(max_steps, solution,
-							    epsilon);
+    soaf_results[i] = soa_functional_experiment.Run(max_steps, epsilon);
     AoSExperiment<double> aos_experiment(fitness, run_mode, x_min, x_max,
 					 v_min, v_max, n_particles, dim, omega, c1,
 					 c2);
-    aos_times[i] = aos_experiment.Run(max_steps, solution, epsilon);
+    aos_results[i] = aos_experiment.Run(max_steps, epsilon);
     if (verbose) {
-      std::cout << "SoA: " << soa_times[i] << '\n'
-		<< "SoAf: " << soa_functional_times[i] << '\n'
-		<< "AoS: " << aos_times[i] << '\n';
+      std::cout << "SoA: " << soa_results[i] << '\n'
+		<< "SoAf: " << soaf_results[i] << '\n'
+		<< "AoS: " << aos_results[i] << '\n';
     }
     ++completed;
-    round_times.push_back(soa_times[i] + soa_functional_times[i] + aos_times[i]);
+    round_times.push_back(soa_results[i].time + soaf_results[i].time + aos_results[i].time);
     auto avg = average(round_times);
     std::cout << "Completed " << completed << " of " << n_experiments << " rounds.\n"
 	      << "Average round time: " << avg << "s\n"
@@ -129,11 +192,16 @@ int main() {
 	      << "s\n\n";
   }
 
-  std::cout << "Done.\nStruct of Arrays\n\tavg (s): " << average(soa_times)
-	    << "\n\tstd dev (s): " << std_dev(soa_times)
-	    << "\nStruct of Arrays - Functional\n\tavg (s): " << average(soa_functional_times)
-	    << "\n\tstd dev (s): " << std_dev(soa_functional_times)
-	    << "\nArray of Structs\n\tavg (s): " << average(aos_times)
-	    << "\n\tstd dev (s): " << std_dev(aos_times) << '\n';
+  SummaryStatistics soa_summary(soa_results);
+  SummaryStatistics soaf_summary(soaf_results);
+  SummaryStatistics aos_summary(aos_results);
+  const std::string pm = " +/- ";
+  std::cout << "Done.\n\n";
+  std::cout << "Number of particles: " << n_particles << '\n';
+  std::cout << "Dimension: " << dim << '\n';
+  std::cout << "Function: " << func_name << '\n';
+  print_summary("AoS", aos_summary);
+  print_summary("SoA", soa_summary);
+  print_summary("SoAf", soaf_summary);
   return 0;
 }

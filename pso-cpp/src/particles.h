@@ -89,6 +89,7 @@ class Particles {
 
   const std::vector<T>& gbest() const noexcept { return gbest_; }
   std::size_t size() const noexcept { return positions_.size(); }
+  T GbestFitness() const noexcept { return fitness_(gbest_); }
 
  private:
   void UpdateVelocitiesSequential() noexcept;

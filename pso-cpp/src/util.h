@@ -8,12 +8,19 @@
 namespace util {
 template <typename T>
 inline std::vector<T> uniform_rand_vec(std::size_t n, T min_x, T max_x) {
+  (void)min_x;
   std::vector<T> v(n);
   std::random_device rd;
   static std::mt19937_64 gen(rd());
-  std::uniform_real_distribution<T> dist(min_x, max_x);
+  std::uniform_real_distribution<T> dist(max_x * 0.75, max_x);
+  std::uniform_real_distribution<T> coin(0.0, 1.0);
   for (std::size_t i = 0; i < n; ++i) {
-    v[i] = dist(gen);
+    const auto c = coin(gen);
+    if (c <= .5) {
+      v[i] = dist(gen);
+    } else {
+      v[i] = -1.0 * dist(gen);
+    }
   }
   return v;
 }

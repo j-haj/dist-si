@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <vector>
 
@@ -15,6 +16,18 @@
 
 enum class RunMode { Sequential, Parallel };
 enum class SoAType { Standard, Functional };
+
+struct Result {
+  double time;
+  double fitness;
+  std::size_t n_steps;
+}; // Result
+
+std::ostream& operator<<(std::ostream& os, const Result& r) {
+  os << "Result{time: " << r.time << " fitness: " << r.fitness << " n_steps: "
+     << r.n_steps;
+  return os;
+}
 
 template <typename T>
 class AoSExperiment {
@@ -37,7 +50,7 @@ class AoSExperiment {
     FindMinParticle();
   }
 
-  double Run(std::size_t max_steps, const std::vector<T>& solution, T epsilon) {
+  Result Run(std::size_t max_steps, T epsilon) {
     std::size_t n_steps = 0;
 
     auto start = std::chrono::steady_clock::now();
@@ -51,14 +64,19 @@ class AoSExperiment {
       // Update particle positions
       UpdateParticlePositions();
 
-      if (util::squared_diff(gbest_.Coordinates(), solution) < epsilon * epsilon) {
+      if (gbest_.Fitness() < epsilon) {
+	std::cout << "SOLUTION FOUND ("
+		  << gbest_.Fitness()
+		  << " < "
+		  << epsilon << ")\n";
 	break;
       }
       ++n_steps;
     }
     auto stop = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
-    return elapsed.count();
+
+    return Result{elapsed.count(), gbest_.Fitness(), n_steps};
   }
 
   void UpdateParticleVelocities() noexcept {
@@ -163,7 +181,7 @@ class SoAExperiment {
 			  v_min, v_max, omega, c1, c2)),
         dim_(dim) {}
 
-  double Run(std::size_t max_steps, const std::vector<T>& solution, T epsilon) {
+  Result Run(std::size_t max_steps, T epsilon) {
     std::size_t n_steps = 0;
 
     auto start = std::chrono::steady_clock::now();
@@ -174,14 +192,18 @@ class SoAExperiment {
       // Update particle positions
       particles_.UpdatePositions();
 
-      if (util::squared_diff(solution, particles_.gbest()) < epsilon * epsilon) {
+      if (particles_.GbestFitness() < epsilon) {
+	std::cout << "SOLUTION FOUND ("
+		  << particles_.GbestFitness()
+		  << " < "
+		  << epsilon << ")\n";
 	break;
       }
       ++n_steps;
     }
     auto stop = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed = stop - start;
-    return elapsed.count();
+    return Result{elapsed.count(), particles_.GbestFitness(), n_steps};
   }
 
  private:
