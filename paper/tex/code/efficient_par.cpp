@@ -1,23 +1,13 @@
 template <typename T>
-void UpdateVelocity(std::vector<T>& v,
-		    const std::vector<T>& pos,
-		    const std::vector<T>& bpos,
-		    const std::vector<T>& gbest,
-		    T r1, T r2)
-{
-  for (std::size_t i = 0; i < v.size(); ++i) {
-    v[i] = omega * v[i] + c1 * r1 * (pos[i] - bpos[i])
-      + c2 * r2 * (pos[i] - gbest[i]);
-  }
-}
-
-template <typename T>
 void UpdateVelocities() {
-  const auto r1s = util::rand_unit_vec(velocities.size());
-  const auto r2s = util::rand_unit_vec(velocities.size());
-#pragma omp parallel for schedule(static)
-  for (std::size_t i = 0; i < velocities.size(); ++i) {
-    UpdateVelocity(v[i], pos[i], bpos[i],
-		   gbest, r1s[i], r2s[i]);
+  const auto r1s = util::rand_unit_vec(n_particles);
+  const auto r2s = util::rand_unit_vec(n_particles);
+#pragma omp parallel for collapse(2)
+  for (std::size_t i = 0; i < n_particles; ++i) {
+    for (std::size_t j = 0; j < dimension; ++j) {
+      velocities[i][j] = omega * velocities[i][j] +
+	c1 * r1s[i] * (positions[i][j] - best_positions[i][j]) +
+	c2 * r2s[i] * (positions[i][j] - gbest[j]);
+    }
   }
 }
