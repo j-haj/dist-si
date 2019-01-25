@@ -609,25 +609,74 @@ There is a large body of work studying the parallelization of PSO. This work can
 be broadly broken up into two categories: OpenMP/MPI based methodoligies and
 GPGPU based methodoligies (typically via CUDA). OpenMP is a set of pragmas used
 with C/C++ or Fortran that automates much of the multi-threading process. MPI
+(Message Passing Interface) is an API for C and Fortran (among others) that
+allows communication between independent processes. Within the OpenMP and MPI
+context, each process or thread can perform a completely unrelated task to the
+other processes or threads without loss in performance. CUDA's computational
+model is much more strict; optimal thread efficiency is generally achieved when
+all GPU threads are performing the same action. While branching within the
+kernel is allowed, if thread branches diverge (i.e., threads take different
+branches), performance is dramatically reduced as the GPU is only capable of
+performing one branch at a time. The reduced computational flexibility of the
+GPU is offset by massive parallelism -- commodity GPUs can have upwards of 4,000
+threads on a single card.
 
-The primary challenge in parallelizing PSO is efficiently updating
-\texttt{gbest} -- since \texttt{gbest} is a shared resource (and in particular,
-shared memory in OpenMP), care must be taken when updating its value. The
-simplest solution is to place a lock on \texttt{gbest}; however, the constant
-acquisition and subsequent release of the lock will quickly degrade
-performance. Dealing with locks is also particularly difficult to get correct,
-with subtle, hard to find concurrency bugs being the norm rather than the
-exception.
+Using OpenMP and MPI is the simplest approach to parallelizing PSO. Within the
+OpenMP/MPI domain, several architectures emerge: sub-swarm-based, fitness
+function-based, and particle-based. While the algorithms themselves vary, these
+architectures all share the same core mechanic where MPI handles inter-node
+communication of globally shared state and OpenMP handles intra-node parallelism
+via threading.
 
-The most common approach to parallelizing PSO is through the use of
-sub-swarms. Each sub-swarm is assigned to a thread and sub-swarms share the
-sub-swarm best amongst other swarms as a way to communicate
-\texttt{gbest}. Many \cite{cooppso, comppso, optionpso}
-build the sub-swarm implementation with OpenMP and MPI. Peng et
-al. \cite{multicore-pso} also investigate the sub-swarm approach to
+Sub-swarm architectures break the initial set of particles into so-called
+``sub-swarms''. Nedjah et al. \cite{comppso} use these sub-swarms to explore
+low-dimensional and orthogonal subspaces of the initial search space. However,
+the gain from reducing the dimensionality is partially offset by fitness
+evaluation, which requires communication across all swarms. Due to the high
+communication cost of the fitness function evaluation, this approach does not
+scale well to large sytstems. Chang et al. \cite{ppso} note that when a fitness
+function can be optimized independently across its dimensions the sub-swarms can
+work independently with minimal communication. When this isn't the case, they
+propose a semi-synchronized algorithm that updates \texttt{gbest} across all
+threads every fixed number of steps. Peng et al. \cite{multicore-pso} also
+investigate the sub-swarm approach to
 parallelization but explore several different swarm communication topoligies and
-use Java threading rather than OpenMP and MPI. All works achieve similar linear
-speed-ups at low thread counts ($<20$ threads).
+use Java threading rather than OpenMP and MPI.
+
+Sub-swarm approaches work well for problems with a relatively inexpensive
+fitness function evaluation. However, evaluating the fitness function across all
+particles can be computationally expensive; in these cases, performing the
+fitness function evaluation in parallel can offer improvement. The parallel
+fitness function architecture \cite{pgpso, ppso-fd} uses a coordinator process
+to handle the PSO update and sends particle data to worker processes that
+evaluate the fitness function for the given particle. These worker processes are
+frequently multi-threaded via OpenMp.
+This works well for a small number of particles, but communication
+overhead will quickly dominate large systems of particles. In the case of large
+systems of particles, it may be more efficient to utilize a sub-swarm approach.
+
+Similar to the parallel fitness function evaluation, several works
+\cite{cooppso, optionpso} distribute individual particles to worker nodes. Each
+worker node is responsible for performing the PSO algorithm on its single
+particle and sending particle information to a coordinator node after each
+iteration. The coordinator uses the collected information to determine
+\texttt{gbest} and broadcasts it to the system. While this broadcast can be done
+efficiently in $O(\lg n)$ time depending on the system network, overall this
+approach suffers from poor scalability due to the high communication overhead
+and blocking nature of the algorithm. In this case, the system is only as fast
+as its slowest node (a common problem with MapReduce algorithms as well).
+
+The most unique approach to parallelizing PSO via OpenMP and MPI is by Koh et
+al. \cite{papso} which proposes an asynchronous, distributed PSO implementation
+based on a shared queue of particles. A coordinator node maintains a queue of
+particles ready to be updated along with particle and global best data. When a
+worker node is ready to perform an update, it querie's the coordinator and
+receives a particle. Worker nodes send the updated particle back to the
+coordinator after completion and request a new particle. Upon completion of a
+single PSO iteration across all particles, the coordinator computes
+\texttt{gbest} and begins another iteration of the algorithm. This architecture
+may be further improved by removing the synchronization point at the end of each
+iteration. 
 
 The other common approach to parallelizing PSO is via GPGPU programming. The
 challenge with GPGPU programming is two-fold: minimizing communication between
@@ -639,13 +688,13 @@ GPU executes one branch at a time.
 This can be difficult to avoid in the PSO algorithm where a core part
 of the aglorithm is finding the globally optimal particle (i.e., \texttt{gbest}).
 To get around this,
-some work \cite{gpu-ppso, gpu-pso} uses the GPU primarily for evaluating the
+some work \cite{gpu-ppso, gpu-pso, biopsogpu} uses the GPU primarily for evaluating the
 fitness function across all particles simultaneously.
-Others, such as Calazan et al. \cite{swarmgrid}, perform the entirety of
+Others \cite{swarmgrid, multiswarmpso-gpu}, perform the entirety of
 the PSO algorithm on the GPU, transferring data from the CPU to the GPU at the
 beginning of the algorithm and then transferring the data back to the CPU from
-the GPU at the end of the algorithm.
-CONTINUE \cite{biopsogpu, multiswarmpso-gpu}
+the GPU at the end of the algorithm. Updates to \texttt{gbest} are performed at
+a set interval.
 
 Other recent work \cite{mrcpso, mprso, coop-pso, intrusion-pso} has
 studied the use of the MapReduce framework \cite{mapreduce} in parallelizing PSO
