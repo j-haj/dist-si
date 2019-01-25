@@ -231,7 +231,7 @@ the data-oriented design is referred to as \emph{struct of arrays} (SoA). This
 terminology is intuitive; an array of structs is a more generic term for a
 vector of objects, while a struct of arrays is a generic term for an object
 containing vectors.
-We use this terminology and add a third: SoA - efficient, which
+We use this terminology and add a third: SoA-fast, which
 represents the efficient, data-oriented design. These names are summarized in
 Table \ref{tab:names}
 
@@ -243,7 +243,7 @@ Table \ref{tab:names}
     \textbf{Name} & \textbf{Description}\\\midrule
     AoS & Array of Structs - Object Oriented\\
     SoA & Struct of Arrays - Data Oriented\\
-    SoA - efficient & Efficient Struct of Arrays\\\bottomrule
+    SoA-fast & Efficient Struct of Arrays\\\bottomrule
   \end{tabular}
 \end{table}
 
@@ -290,7 +290,9 @@ Table \ref{tab:names}
 We make several improvements to the framework for cache-efficient PSO proposed
 in \cite{cache-pso}. While none of these improvements is a major structural
 change to the algorithm of PSO or the data-oriented design, we found that the
-net effect was a dramatic improvement in performance.
+net effect was a dramatic improvement in performance. We discuss key aspects of
+the algorithm in the following sections and present the algorithm in its
+entirety in Algorithm \ref{alg:par-pso}.
 
 \subsection{Random Weights}
 One of the major speed-ups we achieved was through
@@ -482,25 +484,44 @@ We verified this experimentally and found no
 impact to runtime when sampling initial positions from $U(x_{\min}, x_{\max})$
 and from $U((x_{\min},\lambda x_{\min})\cup(\lambda x_{\max}, x_{\max}))$.
 
-\begin{table}
-  \centering
-  \caption{Sequential speed-up with respect to Array of Structs design (dimension
-    75 with 500 particles.)}
-  \label{tab:seq-baseline}
-\begin{tabular}{llll}\toprule
-Structure       & Ackley & Rastrigin & Quadratic \\\midrule
-SoA             & 25.5\%  & 29.2\%     & 10.4\%     \\
-SoA - efficient & 44.7\%  & 46.2\%     & 57.0\%     \\\bottomrule
-\end{tabular}
-\end{table}
 
-Table \ref{tab:seq-baseline} shows the sequential speed-up with respect to the
-AoS design for 500 particles in $\mathbb{R}^{75}$. The SoA architecture as
-proposed in \cite{cache-pso} results in strong improvements over the AoS
-architecture. More interesting is the improvement of the SoA - efficient
-architecture. Because these results are for sequential algorithms, the speed-up
-of the SoA - efficient algorithm is primarily due to batching the random number
-generation.
+\begin{figure}
+  \includegraphics[width=\columnwidth]{../img/output/speedup_seq}
+  \caption{Speed-up over AoS in the sequential setting.}\label{fig:seq-baseline}
+\end{figure}
+
+% \begin{table}
+%   \centering
+%   \caption{Sequential speed-up with respect to Array of Structs design (dimension
+%     75 with 500 particles.)}
+%   \label{tab:seq-baseline}
+% \begin{tabular}{llll}\toprule
+% Structure       & Ackley & Rastrigin & Quadratic \\\midrule
+% SoA             & 25.5\%  & 29.2\%     & 10.4\%     \\
+% SoA-fast & 44.7\%  & 46.2\%     & 57.0\%     \\\bottomrule
+% \end{tabular}
+% \end{table}
+% 
+% Table \ref{tab:seq-baseline} shows the sequential speed-up with respect to the
+% AoS design for 500 particles in $\mathbb{R}^{75}$. The SoA architecture as
+% proposed in \cite{cache-pso} results in strong improvements over the AoS
+% architecture. More interesting is the improvement of the SoA-fast
+% architecture. Because these results are for sequential algorithms, the speed-up
+% of the SoA-fast algorithm is primarily due to batching the random number
+% generation.
+% 
+
+Figure \ref{fig:seq-baseline} shows the sequential speed-up ith respect to the
+AoS design for 500 particles of dimension 75. The SoA architecture as proposed
+in \cite{cache-pso} performs well and shows improved runtimes for all three test
+functions. SoA-fast's improvement over SoA is strictly due to the
+batching of the random weight generation. Of the three test functions, the
+quadratic has the fewest instructions, which means it has the fastest evaluation
+time. A side-effect of this is that the SoA-fast architecture sees an
+increased speed-up because the PSO algorithm spends a greater porition of its
+time in the particle iteration and random number generation parts of the
+algorithm and less time evaluating the fitness function.
+
 
 
 \begin{figure}
@@ -513,61 +534,81 @@ generation.
   \caption{The Ackley function in three dimensions.}\label{fig:ackley}
 \end{figure}
 
-Figures \ref{fig:exp-dim} and \ref{fig:exp-N} compare the performance impact of
-increasing the dimensions and the number of particles in the system,
-respectively. [NOTE: re-run or check the numbers of
-\ref{fig:exp-dim}]. Interestingly, SoA - efficient, seems to handle increasing
-particle dimensions better than SoA and AoS. On closer inspection, this behavior
-is quite intuitive. Observe that in Figure \ref{fig:efficient-par}, we allocate
-an entire vector for the random weights, one weight for each particle, while the
-other approaches generate a new random weight for each component of the velocity
-vector. This
-allocation occurs for each update of the system, which could be arbitrarily
-large. If repeated allocations begin to dominate the runtime, it may be worth
-passing in pre-allocated
-vectors (i.e., \texttt{r1s} and \texttt{r2s}), rather than generating new
-vectors each iteration.
+The batched random weight generations results, while confirmatory, are rather
+unsurprising. The more interesting investigation here is how the lack of
+consistency guarantees impacts convergence of the SoA-fast algorithm. We
+expected the SoA-fast algorithm to require more iterations to converge
+but were surprised at how many more iterations were needed in some
+scenarios. Table \ref{tab:threshold} summarizes the results of experiments
+comparing runtime and steps taken to achieve a desired distance from the
+solution. Because we know the solution ahead of time, we are able to measure
+both the time and number of steps it
+takes for \texttt{gbest} to get within the predefined threshold using the
+Euclidean distance metric. For these experiments we use 1,000 particles and
+consider the thresholds of 1e-5 and 1e-6; these were chosen because they
+gave interesting and reasonable runtimes. We initially experimented with a
+runtime of 1e-8 and found that SoA-fast typically failed to converge.
+
+The results in Table \ref{tab:threshold} confirm our hypothesis proposed in the
+discussion of how SoA-fast reduces critical section contention. SoA-fast is
+substantially faster than SoA at getting an approximate solution, but for highly
+accurate solutions (i.e., low thresholds) the relaxed consistency guarantees
+start to dominate the search. For the 1e-6 threshold, SoA-fast is almost
+uniformly slower for precisely this reason.
+
+The performance characteristics of SoA and SoA-fast are complementary --
+SoA-fast is able to quickly find an approximate solution while SoA is able to
+find an accurate solution. These characteristics make for an interesting future
+direction of a hybrid approach: a cache-aware algorithm that has relaxed
+consistency guarantees initially but switches to a strict consistency regime as
+it senses slowed progress.
 
 
-\begin{figure}
-  \includegraphics[width=\columnwidth]{../img/output/dim}
-  \caption{Results of the increasing dimension experiments with 1,000
-    particles.}
-  \label{fig:exp-dim}
-\end{figure}
 
-\begin{figure}
-  \includegraphics[width=\columnwidth]{../img/output/N}
-  \caption{Results of increasing the number of particles for a fixed dimension
-    size of 100.}
-  \label{fig:exp-N}
-\end{figure}
 
-\begin{table}[]
-  \caption{Parallel results for dimension 100 with 1,000 particles limited to
-    $10^6$ steps. Note: speed-up is with respect to the sequential version of
-    the algorithm.}
-  \label{tab:results}
-\begin{tabular}{lllll}\toprule
-  &                           & \textbf{AoS}             & \textbf{SoA}         & \textbf{SoA - efficient}     \\\midrule
-\multicolumn{2}{l}{\textbf{Ackley}}    &                         &                         &                     \\
-  & Time (s)                  & $310 \pm 7$             & $236 \pm 27$            & $149 \pm 30$        \\
-  & Fitness                   & $1.7 \pm .7$           & $1.5 \pm .8$            & $1.9 \pm .4$        \\
-  & Speed-up  & 2.7                     & 2.31                    & 2.95                \\
-\multicolumn{2}{l}{\textbf{Quadratic}} &                         &                         &                     \\
-  & Time (s)                  & $359 \pm 6$             & $286 \pm 7$             & $56 \pm 2$          \\
-  & Fitness                   & $4.0 \pm .5 \cdot 10^{-6}$ & $7.0 \pm .5 \cdot10^{-7}$
-                                                                 &
-                                                                            $2.0
-                                                                   \pm .2 \cdot
-                                                                            10^{-5}$ \\
-  & Speed-up  & 1.5                     & 1.75                    & 5.96                \\
-\multicolumn{2}{l}{\textbf{Rastrigin}} &                         &                         &                     \\
-  & Time (s)                  & $296.8 \pm .6$          & $209.5 \pm .3$          & $122 \pm 3$         \\
-  & Fitness                   & $192 \pm 47$            & $170 \pm 24$            & $170 \pm 46$        \\
-  & Speed-up  & 5.75                    & 6.25                    & 8.38           \\\bottomrule    
+\begin{table*}[]
+  \caption{Comparison of algorithms as a function of solution threshold and
+    dimension.}
+  \label{tab:threshold}
+\begin{tabular}{ccc|cc}\toprule
+                                  & \multicolumn{2}{c|}{\textbf{Threshold} $\mathbf{ =
+                                    1e-5}$}                         &
+                                                                      \multicolumn{2}{|c}{
+                                                                     \textbf{Threshold}
+                                                                      $\mathbf{ = 1e-6}$}                                          \\\midrule
+                   & \multicolumn{2}{c|}{Runtime (s)} &
+                                                       \multicolumn{2}{c}{Runtime (s)}\\\midrule
+  \textbf{Dimension} & \textbf{SoA} & \textbf{SoA - fast} & \textbf{SoA} & \textbf{SoA - fast}\\
+             25              & $0.048 \pm 0.006$   & $0.028 \pm 0.002$  & $0.051 \pm 0.009$    & $0.034 \pm 0.002$   \\
+             50             & $0.24 \pm 0.06$     & $0.29 \pm 0.20$    & $1.5 \pm 0.8$        & $2.9 \pm 2.8$       \\
+             100         & $15.1 \pm 6.1$      & $13.2 \pm 1.2$     & $55.2 \pm 9.4$       & $82.7 \pm 20.7$    \\\midrule
+              & \multicolumn{2}{c|}{Number of Steps} & \multicolumn{2}{c}{Number
+                                                      of Steps}\\\midrule
+  \textbf{Dimension} & \textbf{SoA} & \textbf{SoA - fast} & \textbf{SoA} & \textbf{SoA - fast}\\
+              25        & $229 \pm 15$        & $223 \pm 16$       & $266 \pm 20$         & $271 \pm 18$        \\
+             50        & $1,214 \pm 304$     & $2,283 \pm 1,573$   & $7,358 \pm 3,185$    & $22,644 \pm 22,229$ \\
+             100       & $52,711 \pm 21,164$ & $96,787 \pm 9,017$ & $193,716 \pm
+                                                                    13,855$ &
+                                                                              $600,600
+                                                                              \pm
+  151,416$ \\\bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
+
+% \begin{figure}
+%   \includegraphics[width=\columnwidth]{../img/output/dim}
+%   \caption{Results of the increasing dimension experiments with 1,000
+%     particles.}
+%   \label{fig:exp-dim}
+% \end{figure}
+% 
+% \begin{figure}
+%   \includegraphics[width=\columnwidth]{../img/output/N}
+%   \caption{Results of increasing the number of particles for a fixed dimension
+%     size of 100.}
+%   \label{fig:exp-N}
+% \end{figure}
+
 
 Table \ref{tab:results} shows the results of the three parallel versions of the
 algorithms for a fixed system size of 1,000 particles in $\mathbb{R}^{100}$
@@ -576,32 +617,6 @@ compute resource limitations.
 Unfortunately, for Rastrigin and arguably Ackley, $10^6$ steps was not sufficient.
 It should be noted that the sequential Rastrigin
 simulation failed to converge to the global minimum of $\mathbf{0}$ as well.
-
-The SoA - efficient algorithm demonstrated the best scalability, achieving more
-than an $8\times$ speed-up for Rastrigin. Recall that the experiments were run
-using six physical cores, yet we see a speed-up greater than $6\times$. This is
-due to additional compiler optimizations. As stated previously, we used
-link-time optimizations and loop unrolling, in addition to compiler-generated
-AVX instructions. The longer the simulation runs, the greater the impact of
-these optimizations. Additionally, as stated previously, the simulations run for
-a maximum of $10^6$ steps or convergence, whichever comes first. Neither Ackley
-nor Rastrigin converged to a suitable solution, which means they both hit the
-maximum step limit. However, they have very different run-times, with Ackley
-being anywhere from 2\% to 20\% slower. The difference in speed is due to
-fitness function evaluation -- more time is spent evaluating the fitness
-function in Ackley while, which means the increased performance from multiple
-threads and AVX instructions has less of an impact on the overall
-performance. Conversely, since Rastrigin has a relatively simpler fitness
-function, it experiences a greater performance boost as a result of spending
-more time looping over the particles (via multiple threads) and updating the
-components of the particles (threads and AVX instructions).
-(Message Passing Interface) is a library used for communicating between processes.
-The advantage of the OpenMP/MPI
-approach is flexibility in parallelization via threads, separate machines, and
-frequently both. Additionally, OpenMP/MPI can more easily handle branches
-without suffering major performance degradation.
-GPGPU approaches are more restricted due to the GPU architecture
--- branching in work groups in a GPU can dramatically reduce performance.\par
 
 
 \section{Related Work}\label{sec:prior}
