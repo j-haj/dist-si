@@ -81,20 +81,22 @@
 
 
 \begin{abstract}
-  In this work we present a general framework for building cache-efficient,
-  parallel Particle Swarm Optimization implementations.  While prior work
-  \cite{cache-pso} has explored cache-efficient designs for PSO in the
-  sequential setting, we show that this work does not naively generalize to the
-  parallel setting.  Specifically, we show that spreading blocks of work across
-  threads maintains data-locality and breaking the algorithm into as many
-  functional components as possible allows the compiler to more effectively
-  optimize each functional unit.  In our experiements using GCC 8.1
-  we found auto-vectorized code from the compiler was as efficient, and
-  sometimes more efficient, than our hand-rolled functions using AVX2
-  instructions.  Our implementation out performs the standard object-oriented
-  implementation of PSO by margins has great as 50\% in both the parallel and
-  sequential settings. Further, we beat the naively parallelized,
-  cache-efficient algorithm by more than 10-20\% in a number of settings.
+Particle Swarm Optimization is an example of a trivially parallelizable
+algorithm where good performance gains can be seen through the use of a single
+OpenMP pragma. Writing an efficient parallel PSO algorithm, however, is much more
+challenging because although the particle updates can occur independently, they
+rely on a shared global state (the global best particle). The difficult of
+maintaining this global state can be seen in the large body of work studying the
+parallelization of PSO -- almost uniformly these algorithms rely on a global
+synchronization step, which results in idle cores and reduced parallel
+efficiency. In this work, we introduce two techniques for implementing a fast and
+efficient parallel PSO algorithm: batching the creation of the random weights
+and reducing critical section contention via relaxed consistency guarantees.
+Our technique shows impressive performance improvements over prior work, seeing
+more than 60\% speed-up over naive parallelization and more than 15\% speed-up
+over the cache-aware algorithm. This speed comes at a cost; while our method
+quickly reaches an approximate solution, it struggles in environments requiring
+a high level of resolution.
 \end{abstract}
 
 %
