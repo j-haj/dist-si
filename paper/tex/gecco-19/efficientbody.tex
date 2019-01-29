@@ -609,15 +609,40 @@ it senses slowed progress.
 %   \label{fig:exp-N}
 % \end{figure}
 
+\begin{figure}
+  \includegraphics[width=\columnwidth]{../img/output/all3time}
+  \caption{Runtime on the three test functions.}
+  \label{fig:all3time}
+\end{figure}
 
-Table \ref{tab:results} shows the results of the three parallel versions of the
-algorithms for a fixed system size of 1,000 particles in $\mathbb{R}^{100}$
-averaged over 20 runs. The simulations were limited to $10^6$ steps due to
-compute resource limitations. 
-Unfortunately, for Rastrigin and arguably Ackley, $10^6$ steps was not sufficient.
-It should be noted that the sequential Rastrigin
-simulation failed to converge to the global minimum of $\mathbf{0}$ as well.
+\begin{figure}
+  \includegraphics[width=\columnwidth]{../img/output/all3steps}
+  \caption{Number of steps to convergence on all three test functions.}
+  \label{fig:all3steps}
+\end{figure}
 
+\begin{table}
+  \centering
+  \caption{Summary of test results.}
+  \label{tab:results}
+  \begin{tabular}{lccc}\toprule
+    & \textbf{Ackley} & \textbf{Rastrigin} & \textbf{Quadratic}\\\midrule
+    Dimension & 20 & 10 & 100\\
+    \# particles & 100 & 500 & 1,000\\
+    SoA-fast vs AoS & 2.0 & 1.9 & 2.6\\
+    SoA-fast vs SoA & 1.1 & 1.1 & 1.1\\\bottomrule
+  \end{tabular}
+\end{table}
+
+Figures \ref{fig:all3time} and \ref{fig:all3steps} show the runtime and number
+of steps taken for convergence on the three test functions. Table
+\ref{tab:results} summarizes the test conditions and speed-up achieved by the
+SoA-fast algorithm. SoA-fast is about twice as fast as the AoS architecture and
+about 10\% faster than the SoA architecture. Similar to the results in Table
+\ref{tab:threshold}, SoA-fast consistently requires more steps to converge but
+is able to perform those steps faster than SoA and AoS. However, as we noted in
+the discussion of the Table \ref{tab:threshold}, it is always possible to be
+SoA-fast when a suitable solution threshold is picked.
 
 \section{Related Work}\label{sec:prior}
 There is a large body of work studying the parallelization of PSO. This work can
@@ -726,18 +751,14 @@ parallelism is also being investigated by the deep learning community \cite{mrpn
   heterospark, dlspark}. 
 
 \section{Conclusion}
-In this work we present two optimizations to improve the performance of both the
-standard and parallel version of the PSO algorithm. At a minimum, this work
-introduces specific guidance on how and where to generate the random weights in
-PSO, which, as we demonstrated, results in substantial performance gains. The
-technique introduced to avoid ctricial section contention is also widely
-applicable to other algorithms.
+In this work we present two optimizations for the performance of both the
+standard and parallel version of the PSO algorithm. We introduce
+introduce specific guidance on how and where to generate the random weights in
+PSO, which, as we demonstrated, results in substantial performance gains. 
+The technique for avoiding critical section contention is applicable outside of
+PSO and offers a competitive speed-accuracy trade-off.
 
-Two avenues for future work are investingating the asynchronous, multiple
-machine implementation and expanding this work to other algorithms such as Ant
-Colony Optimization and genetic algorithms. Specifically, it would be
-interesting to expand the critical section contention technique to a
-message-passing paradigm where communication and coordination patterns can
-become quite complex.
+A multi-regime algorithm based on the SoA and SoA-fast architectures studied in
+this work is a particularly interesting avenue of future work.
 
 
