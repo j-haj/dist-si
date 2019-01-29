@@ -1,0 +1,4 @@
+# f		AoS	AoS_dev		SoA	SoA_dev		SoAf	SoAf_dev
+Ackley		47	2		35	1		26	1
+Rastrigin	52	2		36.8	.8		28	1
+Quadratic	19.3	.5		17.3	.5		8.3	.5

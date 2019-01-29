@@ -1,0 +1,4 @@
+# function	aos	soa	soaf		dim	n_particles
+Ackley		34.5437	19.2912	17.3967		20	100
+Rastrigin	87.1165	51.213	46.3354		10	500
+Quadratic	34.988	15.1362	13.2312		100	1000

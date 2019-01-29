@@ -1,0 +1,100 @@
+epsilon 1e-5
+quadratic - parallel
+
+Number of particles: 100000
+Dimension: 100
+Function:
+AoS
+	time (s): 10.8117 +/- 0.434573
+	fitness: 9.80287e-06 +/- 1.16561e-07
+	steps: 321.3 +/- 12.9171
+SoA
+	time (s): 12.1221 +/- 0.50795
+	fitness: 9.82185e-06 +/- 1.45135e-07
+	steps: 318.2 +/- 13.2649
+SoAf
+	time (s): 8.98306 +/- 0.340911
+	fitness: 9.80858e-06 +/- 1.30485e-07
+	steps: 314.05 +/- 11.967
+
+Number of particles: 10000
+Dimension: 100
+Function:
+AoS
+	time (s): 3.73617 +/- 0.504941
+	fitness: 9.97658e-06 +/- 3.85748e-08
+	steps: 1171.55 +/- 159.422
+SoA
+	time (s): 3.64853 +/- 0.30925
+	fitness: 9.9513e-06 +/- 5.40179e-08
+	steps: 1066.05 +/- 90.0354
+SoAf
+	time (s): 2.78586 +/- 0.29286
+	fitness: 9.96894e-06 +/- 4.18998e-08
+	steps: 1148.05 +/- 120.371
+
+Number of particles: 1000
+Dimension: 100
+Function:
+AoS
+	time (s): 34.9884 +/- 2.42184
+	fitness: 1.88953e-05 +/- 6.79947e-06
+	steps: 98419.2 +/- 6685.55
+SoA
+	time (s): 15.1362 +/- 6.07485
+	fitness: 1.00681e-05 +/- 3.67056e-07
+	steps: 52711.4 +/- 21163.9
+SoAf
+	time (s): 13.2312 +/- 1.23789
+	fitness: 1.76449e-05 +/- 7.50597e-06
+	steps: 96786.9 +/- 9017.18
+
+Number of particles: 1000
+Dimension: 50
+Function:
+AoS
+	time (s): 0.873947 +/- 0.470768
+	fitness: 9.9706e-06 +/- 5.74085e-08
+	steps: 3379.75 +/- 1806.3
+SoA
+	time (s): 0.23773 +/- 0.0609307
+	fitness: 9.95424e-06 +/- 5.57306e-08
+	steps: 1214.1 +/- 304.047
+SoAf
+	time (s): 0.287229 +/- 0.197787
+	fitness: 9.97895e-06 +/- 2.94368e-08
+	steps: 2283.25 +/- 1572.95
+
+epsilon 1e-6
+Number of particles: 1000
+Dimension: 100
+Function:
+AoS
+	time (s): 71.5435 +/- 0.710387
+	fitness: 9.45145e-06 +/- 5.87321e-06
+	steps: 200000 +/- 0
+SoA
+	time (s): 55.2265 +/- 3.96273
+	fitness: 2.13132e-06 +/- 9.36253e-07
+	steps: 193716 +/- 13855
+SoAf
+	time (s): 27.1229 +/- 0.0291047
+	fitness: 8.2905e-06 +/- 4.38168e-06
+	steps: 200000 +/- 0
+	
+Number of particles: 1000
+Dimension: 50
+Function:
+AoS
+	time (s): 19.6859 +/- 9.42779
+	fitness: 1.2327e-06 +/- 8.96796e-07
+	steps: 65521.3 +/- 30079.6
+SoA
+	time (s): 1.49855 +/- 0.764027
+	fitness: 9.96381e-07 +/- 1.00852e-08
+	steps: 7358.4 +/- 3184.64
+SoAf
+	time (s): 2.86283 +/- 2.80906
+	fitness: 9.95596e-07 +/- 1.04426e-08
+	steps: 22644.2 +/- 22229.3
+
