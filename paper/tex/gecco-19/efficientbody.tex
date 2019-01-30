@@ -38,7 +38,7 @@ make irrational steps---steps that are in a direction other than that dictated b
 standard PSO---with the goal that this relaxed algorithm has a reduced runtime.
 This is done by reducing the randomness in the velocity updates and
 allowing non-atomic reads of \texttt{gbest}. Using non-atomic reads and writes
-is particularlly interesting because it means the system maybe use values of
+is particularlly interesting because it means the system might use values of
 \texttt{gbest} that are non-sensical. Although this is troubling from a
 correctness standpoint, the performance characteristics are quite impressive.
 
@@ -57,6 +57,113 @@ cache-aware algorithms and introduces the concept of data-oriented design. In
 Section \ref{sec:results} we discuss experimental results. Finally, in Section
 \ref{sec:prior} we discuss prior work.
 
+
+\section{Related Work}\label{sec:prior}
+There is a large body of work studying the parallelization of PSO. This work can
+be broadly broken up into two categories: OpenMP/MPI based methodoligies and
+GPGPU based methodoligies (typically via CUDA). OpenMP is a set of pragmas used
+with C/C++ or Fortran that automates much of the multi-threading process. MPI
+(Message Passing Interface) is an API for C and Fortran (among others) that
+allows communication between independent processes. Within the OpenMP and MPI
+context, each process or thread can perform a completely unrelated task to the
+other processes or threads without loss in performance. CUDA's computational
+model is much more strict; optimal thread efficiency is generally achieved when
+all GPU threads are performing the same action. While branching within the
+kernel is allowed, if thread branches diverge (i.e., threads take different
+branches), performance is dramatically reduced as the GPU is only capable of
+performing one branch at a time. The reduced computational flexibility of the
+GPU is offset by massive parallelism -- commodity GPUs can have upwards of 4,000
+threads on a single card.
+
+Using OpenMP and MPI is the simplest approach to parallelizing PSO. Within the
+OpenMP/MPI domain, several architectures emerge: sub-swarm-based, fitness
+function-based, and particle-based. While the algorithms themselves vary, these
+architectures all share the same core mechanic where MPI handles inter-node
+communication of globally shared state and OpenMP handles intra-node parallelism
+via threading.
+
+Sub-swarm architectures break the initial set of particles into so-called
+``sub-swarms''. Nedjah et al. \cite{comppso} use these sub-swarms to explore
+low-dimensional and orthogonal subspaces of the initial search space. However,
+the gain from reducing the dimensionality is partially offset by fitness
+evaluation, which requires communication across all swarms. Due to the high
+communication cost of the fitness function evaluation, this approach does not
+scale well to large sytstems. Chang et al. \cite{ppso} note that when a fitness
+function can be optimized independently across its dimensions the sub-swarms can
+work independently with minimal communication. When this isn't the case, they
+propose a semi-synchronized algorithm that updates \texttt{gbest} across all
+threads every fixed number of steps. Peng et al. \cite{multicore-pso} also
+investigate the sub-swarm approach to
+parallelization but explore several different swarm communication topoligies and
+use Java threading rather than OpenMP and MPI.
+
+Sub-swarm approaches work well for problems with a relatively inexpensive
+fitness function evaluation. However, evaluating the fitness function across all
+particles can be computationally expensive; in these cases, performing the
+fitness function evaluation in parallel can offer improvement. The parallel
+fitness function architecture \cite{pgpso, ppso-fd} uses a coordinator process
+to handle the PSO update and sends particle data to worker processes that
+evaluate the fitness function for the given particle. These worker processes are
+frequently multi-threaded via OpenMp.
+This works well for a small number of particles, but communication
+overhead will quickly dominate large systems of particles. In the case of large
+systems of particles, it may be more efficient to utilize a sub-swarm approach.
+
+Similar to the parallel fitness function evaluation, several works
+\cite{cooppso, optionpso} distribute individual particles to worker nodes. Each
+worker node is responsible for performing the PSO algorithm on its single
+particle and sending particle information to a coordinator node after each
+iteration. The coordinator uses the collected information to determine
+\texttt{gbest} and broadcasts it to the system. While this broadcast can be done
+efficiently in $O(\lg n)$ time depending on the system network, overall this
+approach suffers from poor scalability due to the high communication overhead
+and blocking nature of the algorithm. In this case, the system is only as fast
+as its slowest node (a common problem with MapReduce algorithms as well).
+
+The most unique approach to parallelizing PSO via OpenMP and MPI is by Koh et
+al. \cite{papso} which proposes an asynchronous, distributed PSO implementation
+based on a shared queue of particles. 
+
+Another common approach to parallelizing PSO is via GPGPU programming
+\cite{gpu-ppso, gpu-pso, biopsogpu}. GPU-based
+algorithms primarily use the GPU for fitness function evaluation, although
+some are able to perform the entirety of the PSO aglorithm on the GPU
+\cite{swarmgrid, multiswarmpso-gpu}.
+% The
+% challenge with GPGPU programming is two-fold: minimizing communication between
+% the GPU and CPU, which is costly, and avoiding branching within the GPU
+% kernel\footnote{a kernel in GPGPU programming is the name of the procedure being
+%   run on  the GPU}. When grouped threads (referred to as a warp) within a GPU
+% start to diverge due to branching, the
+% GPU executes one branch at a time.
+% This can be difficult to avoid in the PSO algorithm where a core part
+% of the aglorithm is finding the globally optimal particle (i.e., \texttt{gbest}).
+% To get around this,
+% some work \cite{gpu-ppso, gpu-pso, biopsogpu} uses the GPU primarily for evaluating the
+% fitness function across all particles simultaneously.
+% Others \cite{swarmgrid, multiswarmpso-gpu}, perform the entirety of
+% the PSO algorithm on the GPU, transferring data from the CPU to the GPU at the
+% beginning of the algorithm and then transferring the data back to the CPU from
+% the GPU at the end of the algorithm. Updates to \texttt{gbest} are performed at
+% a set interval.
+
+Other recent work \cite{mrcpso, mprso, coop-pso, intrusion-pso} has
+studied the use of the MapReduce framework \cite{mapreduce} in parallelizing PSO
+for various applications.
+% In most experiments, these works see near linear
+% scaling with number of nodes added in the MapReduce cluster.
+% The MapReduce implementations serve as a complementary
+% approach to the CPU and GPU-based work. For example, each node in the MapReduce
+% cluster can run an OpenMP and/or
+% GPGPU-based algorithm. Improvements to the CPU and GPU PSO algorithms directly
+% flow into the work of the MapReduce-based algorithms.
+A similar approach of using
+MapReduce for coarse-grain parallelism and resiliency while allowing
+models to manage the fine-grained
+parallelism is also being investigated by the deep learning community \cite{mrpnn,
+  heterospark, dlspark}. 
+
+
 \section{Particle Swarm Optimization}\label{sec:pso}
 Particle Swarm Optimization (PSO) \cite{pso} is a global optimization technique
 inspired by swarm behavior found in nature (e.g., a flock of birds).
@@ -68,7 +175,7 @@ problem specific fitness function.
 The swarm maintains a global best position (the position
 with the optimal fitness value) and the goal is for this global best position to
 converge to the global minimum (maximum).
-One of the advantages of PSO is that it searches globally for the optimum,
+One of the characteristics of PSO is that it searches globally for the optimum,
 although it does not have a guarantee of convergence.
 In particular, if the particles are initialized in a subspace far from the
 global optimum, the change of convergence is greatly reduced.
@@ -158,7 +265,8 @@ RAM (or disk) into cache, the CPU loads a cache line, which is typically
 values for 64 bit number.
 A cache-aware
 algorithm utilizes this information by grouping data such that data utilized by
-the algorithm in temporal proximity is stored physically close together. This
+the algorithm in temporal proximity is stored physically close together
+\cite{scientific-software}. This
 is referred to as data locality. In other words, we want to keep data that is
 accessed at around the same time as close together as possible. Doing so reduces
 access to RAM and disk, both of which are substantially more
@@ -167,7 +275,7 @@ costly than accessing cache.
 \subsection{Data-Oriented Design}
 We can use the idea of data locality to
 influence the design of our programs. This is one aspect of what is known as
-data-oriented design and
+data-oriented design\cite{dod} and
 is a very common technique in the video game industry, which is known for
 writing performant code.
 Data-oriented design
@@ -186,8 +294,8 @@ design point of view, this is a sensible approach. However, as we will
 demonstrate in the experiments section, this design choice reduces performance
 for highly sequential access patterns (such as PSO).
 When a particle gets loaded into cache, the
-cache line will contain three \texttt{T*}\footnote{\texttt{T} is either a float
-  (32 bits) or a double (64 bits)} pointers, the three constant values
+cache line will contain three pointers to \texttt{T}, which is either a
+32-bit or 64-bit floating point number, the three constant values
 $c_1$, $c_2$, and $\omega$, and three function pointers to the fitness,
 position, and velocity update functions.
 
@@ -197,7 +305,7 @@ best--are split across three separate vectors. CPU
 assumes (hopes) a load from one address will be followed by loads from nearby
 addresses and, in the case of 64-bit floats, will pull the next seven values in
 memory into cache. Because we structured our data to use these values next, the
-CPU saves as many has seven memory accesses.
+CPU saves as many as seven memory accesses.
 
 Both the object-oriented and data-oriented designs store velocity and position
 data as vectors. Since both design approaches share this aspect, we may be left
@@ -217,7 +325,8 @@ used during particle updates and takes up valuable cache space. In some cases,
 this data may even evict data from the cache that will be needed in the near
 future. Using the design illustrated in Figure \ref{fig:particle}, each cache
 line resulting from a particle load will have over 11\% wasted space due to the
-fitness function pointer alone. Also note that the call to
+fitness function pointer alone (of the nine values loaded, the fitness function is
+not used and thus is wasted space). Also note that the call to
 \texttt{UpdateVelocity} will iterate over the velocity vector, bringing in
 elements of the velocity vector into cache and possibly evicting the function
 pointer for the \texttt{UpdatePosition} method. This eviction will cause another
@@ -290,9 +399,17 @@ Table \ref{tab:names}
 We make several improvements to the framework for cache-efficient PSO proposed
 in \cite{cache-pso}. While none of these improvements is a major structural
 change to the algorithm of PSO or the data-oriented design, we found that the
-net effect was a dramatic improvement in performance. We discuss key aspects of
-the algorithm in the following sections and present the algorithm in its
-entirety in Algorithm \ref{alg:par-pso}.
+net effect was a dramatic improvement in performance.
+
+\begin{figure}
+  \lstinputlisting{../code/naive_par.cpp}
+  \caption{Naive random weight generation.}\label{fig:naive-par}
+\end{figure}
+
+\begin{figure}
+  \lstinputlisting{../code/efficient_par.cpp}
+  \caption{Efficient random weight generation.}\label{fig:efficient-par}
+\end{figure}
 
 \subsection{Random Weights}
 One of the major speed-ups we achieved was through
@@ -312,11 +429,11 @@ these random values in cache and we avoid expensive calls to random number
 generation routines. This can be seen in Figures \ref{fig:naive-par} and
 \ref{fig:efficient-par}. The naive approach, shown in Figure \ref{fig:naive-par}
 makes two calls to
-\texttt{random\_uniform} for each particle. The efficient, shown in Figure
+\texttt{random\_uniform} for each particle. The efficient approach, shown in Figure
 \ref{fig:efficient-par},
-approach indexes the $r$-value vectors \texttt{r1s} and \texttt{r2s}, which are
-created at the start of each call to \texttt{UpdateVelocity}. Some readers may
-note that this is a rather obvious optimization -- we agree. However, in
+indexes the $r$-value vectors \texttt{r1s} and \texttt{r2s}, which are
+created at the start of each call to \texttt{UpdateVelocity}. This is a rather
+obvious optimization; however, in
 practice it seems it is an optimization that is frequently overlooked.
 Another potential criticism of this approach is that it reduces variation in the
 updated velocity, which could potentially slow convergence. In our experience,
@@ -334,7 +451,7 @@ requires checking all particles against the current \texttt{gbest} and updating
 when a position with a better fitness value is found. This is a classic
 reduction scenario, which can be done in $O(\lg n)$ time. OpenMP provides the
 facilities to handle this efficiently, but only for a few simple types and
-operations. Unforutnately, these do include \texttt{std::vector<T>}. Similar to
+operations. Unfortunately, these do not include \texttt{std::vector<T>}. Similar to
 prior works, we do a linear scan of all particles in parallel. This presents its
 own challenge due to the data race that occurs when multiple threads attempt to
 read or write \texttt{gbest}. Figure \ref{fig:naive-update} shows an example of a
@@ -366,18 +483,19 @@ faster runtime.
 
 
 \begin{figure}
+  \lstinputlisting{../code/naive_update.cpp}
+  \caption{Naive update in a critical section for the naive parallel PSO
+    algorithm.}
+  \label{fig:naive-update}
+\end{figure}
+
+\begin{figure}
   \lstinputlisting{../code/efficient_update.cpp}
   \caption{Efficient update in a critical section for the efficient parallel PSO
     algorithm.}
   \label{fig:efficient-update}
 \end{figure}
 
-\begin{figure}
-  \lstinputlisting{../code/naive_update.cpp}
-  \caption{Naive update in a critical section for the naive parallel PSO
-    algorithm.}
-  \label{fig:naive-update}
-\end{figure}
 
 \begin{algorithm}
   \caption{Cache-aware parallel PSO}\label{alg:par-pso}
@@ -420,15 +538,6 @@ faster runtime.
   \end{algorithmic}
 \end{algorithm}
 
-\begin{figure}
-  \lstinputlisting{../code/naive_par.cpp}
-  \caption{Naive random weight generation.}\label{fig:naive-par}
-\end{figure}
-
-\begin{figure}
-  \lstinputlisting{../code/efficient_par.cpp}
-  \caption{Efficient random weight generation.}\label{fig:efficient-par}
-\end{figure}
 
 \section{Results}\label{sec:results}
 \begin{table}
@@ -648,112 +757,6 @@ with respect to the trade-off that makes SoA-fast so performant: the reduced
 consistency guarantees of SoA-fast mean it will very quickly (with respect to
 wall clock time) converge to an approximate solution, but at a small enough
 resolution will fall behind standard SoA.
-
-\section{Related Work}\label{sec:prior}
-There is a large body of work studying the parallelization of PSO. This work can
-be broadly broken up into two categories: OpenMP/MPI based methodoligies and
-GPGPU based methodoligies (typically via CUDA). OpenMP is a set of pragmas used
-with C/C++ or Fortran that automates much of the multi-threading process. MPI
-(Message Passing Interface) is an API for C and Fortran (among others) that
-allows communication between independent processes. Within the OpenMP and MPI
-context, each process or thread can perform a completely unrelated task to the
-other processes or threads without loss in performance. CUDA's computational
-model is much more strict; optimal thread efficiency is generally achieved when
-all GPU threads are performing the same action. While branching within the
-kernel is allowed, if thread branches diverge (i.e., threads take different
-branches), performance is dramatically reduced as the GPU is only capable of
-performing one branch at a time. The reduced computational flexibility of the
-GPU is offset by massive parallelism -- commodity GPUs can have upwards of 4,000
-threads on a single card.
-
-Using OpenMP and MPI is the simplest approach to parallelizing PSO. Within the
-OpenMP/MPI domain, several architectures emerge: sub-swarm-based, fitness
-function-based, and particle-based. While the algorithms themselves vary, these
-architectures all share the same core mechanic where MPI handles inter-node
-communication of globally shared state and OpenMP handles intra-node parallelism
-via threading.
-
-Sub-swarm architectures break the initial set of particles into so-called
-``sub-swarms''. Nedjah et al. \cite{comppso} use these sub-swarms to explore
-low-dimensional and orthogonal subspaces of the initial search space. However,
-the gain from reducing the dimensionality is partially offset by fitness
-evaluation, which requires communication across all swarms. Due to the high
-communication cost of the fitness function evaluation, this approach does not
-scale well to large sytstems. Chang et al. \cite{ppso} note that when a fitness
-function can be optimized independently across its dimensions the sub-swarms can
-work independently with minimal communication. When this isn't the case, they
-propose a semi-synchronized algorithm that updates \texttt{gbest} across all
-threads every fixed number of steps. Peng et al. \cite{multicore-pso} also
-investigate the sub-swarm approach to
-parallelization but explore several different swarm communication topoligies and
-use Java threading rather than OpenMP and MPI.
-
-Sub-swarm approaches work well for problems with a relatively inexpensive
-fitness function evaluation. However, evaluating the fitness function across all
-particles can be computationally expensive; in these cases, performing the
-fitness function evaluation in parallel can offer improvement. The parallel
-fitness function architecture \cite{pgpso, ppso-fd} uses a coordinator process
-to handle the PSO update and sends particle data to worker processes that
-evaluate the fitness function for the given particle. These worker processes are
-frequently multi-threaded via OpenMp.
-This works well for a small number of particles, but communication
-overhead will quickly dominate large systems of particles. In the case of large
-systems of particles, it may be more efficient to utilize a sub-swarm approach.
-
-Similar to the parallel fitness function evaluation, several works
-\cite{cooppso, optionpso} distribute individual particles to worker nodes. Each
-worker node is responsible for performing the PSO algorithm on its single
-particle and sending particle information to a coordinator node after each
-iteration. The coordinator uses the collected information to determine
-\texttt{gbest} and broadcasts it to the system. While this broadcast can be done
-efficiently in $O(\lg n)$ time depending on the system network, overall this
-approach suffers from poor scalability due to the high communication overhead
-and blocking nature of the algorithm. In this case, the system is only as fast
-as its slowest node (a common problem with MapReduce algorithms as well).
-
-The most unique approach to parallelizing PSO via OpenMP and MPI is by Koh et
-al. \cite{papso} which proposes an asynchronous, distributed PSO implementation
-based on a shared queue of particles. A coordinator node maintains a queue of
-particles ready to be updated along with particle and global best data. When a
-worker node is ready to perform an update, it querie's the coordinator and
-receives a particle. Worker nodes send the updated particle back to the
-coordinator after completion and request a new particle. Upon completion of a
-single PSO iteration across all particles, the coordinator computes
-\texttt{gbest} and begins another iteration of the algorithm. This architecture
-may be further improved by removing the synchronization point at the end of each
-iteration. 
-
-The other common approach to parallelizing PSO is via GPGPU programming. The
-challenge with GPGPU programming is two-fold: minimizing communication between
-the GPU and CPU, which is costly, and avoiding branching within the GPU
-kernel\footnote{a kernel in GPGPU programming is the name of the procedure being
-  run on  the GPU}. When grouped threads (referred to as a warp) within a GPU
-start to diverge due to branching, the
-GPU executes one branch at a time.
-This can be difficult to avoid in the PSO algorithm where a core part
-of the aglorithm is finding the globally optimal particle (i.e., \texttt{gbest}).
-To get around this,
-some work \cite{gpu-ppso, gpu-pso, biopsogpu} uses the GPU primarily for evaluating the
-fitness function across all particles simultaneously.
-Others \cite{swarmgrid, multiswarmpso-gpu}, perform the entirety of
-the PSO algorithm on the GPU, transferring data from the CPU to the GPU at the
-beginning of the algorithm and then transferring the data back to the CPU from
-the GPU at the end of the algorithm. Updates to \texttt{gbest} are performed at
-a set interval.
-
-Other recent work \cite{mrcpso, mprso, coop-pso, intrusion-pso} has
-studied the use of the MapReduce framework \cite{mapreduce} in parallelizing PSO
-for various applications. In most experiments, these works see near linear
-scaling with number of nodes added in the MapReduce cluster.
-The MapReduce implementations serve as a complementary
-approach to the CPU and GPU-based work. For example, each node in the MapReduce
-cluster can run an OpenMP and/or
-GPGPU-based algorithm. Improvements to the CPU and GPU PSO algorithms directly
-flow into the work of the MapReduce-based algorithms. A similar approach of using
-MapReduce for coarse-grain parallelism and resiliency while allowing
-models to manage the fine-grained
-parallelism is also being investigated by the deep learning community \cite{mrpnn,
-  heterospark, dlspark}. 
 
 \section{Conclusion}
 In this work we present two optimizations for the performance of both the
