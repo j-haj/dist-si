@@ -12,7 +12,7 @@
 \usepackage{graphicx}
 \usepackage{listings}
 \usepackage{setspace}
-%\doublespacing
+\doublespacing
 \lstset{
   language=C++,
   basicstyle=\ttfamily\footnotesize,
@@ -83,17 +83,17 @@
 \begin{abstract}
 Particle Swarm Optimization is an example of a trivially parallelizable
 algorithm where good performance gains can be seen through the use of a single
-OpenMP pragma. Writing an efficient parallel PSO algorithm, however, is much more
+OpenMP pragma. Writing an \emph{efficient} parallel PSO algorithm, on the other hand, is much more
 challenging because although the particle updates can occur independently, they
-rely on a shared global state (the global best particle). The difficult of
+rely on a shared global state (the global best particle). The difficulty of
 maintaining this global state can be seen in the large body of work studying the
 parallelization of PSO -- almost uniformly these algorithms rely on a global
 synchronization step, which results in idle cores and reduced parallel
 efficiency. In this work, we introduce two techniques for implementing a fast and
 efficient parallel PSO algorithm: batching the creation of the random weights
-and reducing critical section contention via relaxed consistency guarantees.
+and reducing critical section contention via a relaxed consistency guarantee.
 Our technique shows impressive performance improvements over prior work, seeing
-more than 60\% speed-up over naive parallelization and more than 15\% speed-up
+more than 60\% speed-up over naive parallelization and more than 10\% speed-up
 over the cache-aware algorithm. This speed comes at a cost; while our method
 quickly reaches an approximate solution, it struggles in environments requiring
 a high level of resolution.

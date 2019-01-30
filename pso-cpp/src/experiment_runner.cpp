@@ -9,6 +9,11 @@
 #include "particles_functional.h"
 #include "particle_update_mode.h"
 
+#define N_PARTICLES 500
+#define DIMENSION 10
+#define MAX_STEPS 1000000
+#define EPSILON 5
+
 enum class RunType {
   Sequential,
   Parallel,
@@ -85,12 +90,12 @@ int main() {
 
 
   // Params
-  std::size_t n_particles = 1000;
-  std::size_t dim = 100;
+  std::size_t n_particles = N_PARTICLES;
+  std::size_t dim = DIMENSION;
   RunType run_type = RunType::Parallel;
-  bool verbose = false;
-  const auto max_steps = 1000000;
-  auto test_function = TestFunction::Quadratic;
+  bool verbose = true;
+  const auto max_steps = MAX_STEPS;
+  auto test_function = TestFunction::Rastrigin;
   
   ParticleUpdateMode particle_update_mode;
   RunMode run_mode;
@@ -155,7 +160,7 @@ int main() {
     fitness = ackley;
   }
 
-  type_t epsilon = 1e-8;
+  type_t epsilon = EPSILON;
   int n_experiments = 20;
 
   std::vector<Result> soa_results(n_experiments);
@@ -166,8 +171,8 @@ int main() {
   for (int i = 0; i < n_experiments; ++i) {
     SoAExperiment<Particles, double>
       soa_experiment(fitness, particle_update_mode,
-		     x_min, x_max, v_min, v_max, n_particles,
-		     dim, omega, c1, c2);
+    		     x_min, x_max, v_min, v_max, n_particles,
+    		     dim, omega, c1, c2);
     soa_results[i] = soa_experiment.Run(max_steps, epsilon);
     SoAExperiment<ParticlesFunctional, double>
       soa_functional_experiment(fitness, particle_update_mode,

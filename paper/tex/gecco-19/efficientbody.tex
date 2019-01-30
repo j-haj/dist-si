@@ -1,5 +1,5 @@
 \section{Introduction}
-Particle Swarm Optimization (PSO) is a computationally intensive algorithm for
+Particle Swarm Optimization (PSO)\cite{pso} is a computationally intensive algorithm for
 global optimization that quickly becomes intractable for
 high-dimensional search spaces and large numbers of particles when run
 sequentially. To overcome this limitation, practitioners turn to parallel
@@ -549,8 +549,9 @@ consider the thresholds of 1e-5 and 1e-6; these were chosen because they
 gave interesting and reasonable runtimes. We initially experimented with a
 runtime of 1e-8 and found that SoA-fast typically failed to converge.
 
-The results in Table \ref{tab:threshold} confirm our hypothesis proposed in the
-discussion of how SoA-fast reduces critical section contention. SoA-fast is
+The results in Table \ref{tab:threshold} confirm our hypothesis that the
+reducing critical section contention by relaxing consistency
+guarantees comes at the cost of reduced convergence efficiency. SoA-fast is
 substantially faster than SoA at getting an approximate solution, but for highly
 accurate solutions (i.e., low thresholds) the relaxed consistency guarantees
 start to dominate the search. For the 1e-6 threshold, SoA-fast is almost
@@ -629,20 +630,24 @@ it senses slowed progress.
     & \textbf{Ackley} & \textbf{Rastrigin} & \textbf{Quadratic}\\\midrule
     Dimension & 20 & 10 & 100\\
     \# particles & 100 & 500 & 1,000\\
-    SoA-fast vs AoS & 2.0 & 1.9 & 2.6\\
-    SoA-fast vs SoA & 1.1 & 1.1 & 1.1\\\bottomrule
+    SoA-fast vs AoS & $2.0\times$ & $1.9\times$ & $2.6\times$\\
+    SoA-fast vs SoA & $1.1\times$ & $1.1\times$ & $1.1\times$\\\bottomrule
   \end{tabular}
 \end{table}
 
 Figures \ref{fig:all3time} and \ref{fig:all3steps} show the runtime and number
-of steps taken for convergence on the three test functions. Table
-\ref{tab:results} summarizes the test conditions and speed-up achieved by the
-SoA-fast algorithm. SoA-fast is about twice as fast as the AoS architecture and
+of steps taken for convergence on the three test functions, summarized in Table
+\ref{tab:results}.
+SoA-fast is about twice as fast as the AoS architecture and
 about 10\% faster than the SoA architecture. Similar to the results in Table
 \ref{tab:threshold}, SoA-fast consistently requires more steps to converge but
-is able to perform those steps faster than SoA and AoS. However, as we noted in
-the discussion of the Table \ref{tab:threshold}, it is always possible to be
-SoA-fast when a suitable solution threshold is picked.
+is able to perform those steps faster than SoA and AoS. We want to point out
+that these last set of experiments were chosen to showcase SoA-fast's performance.
+However, it is important to restate the discussion about Table \ref{tab:threshold}
+with respect to the trade-off that makes SoA-fast so performant: the reduced
+consistency guarantees of SoA-fast mean it will very quickly (with respect to
+wall clock time) converge to an approximate solution, but at a small enough
+resolution will fall behind standard SoA.
 
 \section{Related Work}\label{sec:prior}
 There is a large body of work studying the parallelization of PSO. This work can
@@ -753,12 +758,16 @@ parallelism is also being investigated by the deep learning community \cite{mrpn
 \section{Conclusion}
 In this work we present two optimizations for the performance of both the
 standard and parallel version of the PSO algorithm. We introduce
-introduce specific guidance on how and where to generate the random weights in
+specific guidance on how and where to generate the random weights in
 PSO, which, as we demonstrated, results in substantial performance gains. 
-The technique for avoiding critical section contention is applicable outside of
-PSO and offers a competitive speed-accuracy trade-off.
-
-A multi-regime algorithm based on the SoA and SoA-fast architectures studied in
-this work is a particularly interesting avenue of future work.
+The reduced consistency guarnatee of SoA-fast results in around a 10\% performance
+gain over the standard SoA architecture. This gain comes at a cost -- SoA-fast
+requires more steps (despite a short wall clock time) to achieve a suitable
+convergence threshold when compared to SoA. For a small enough convergence
+criterion, SoA-fast will struggle to converge. However, for many applications,
+SoA-fast converges to a suitable solution in a shorter amount of time. Perhaps
+SoA-fast's greatest contribution is that these techniques are easily transferable
+to other PSO algorithms, giving PSO implementors two more tricks to add to their
+toolbox.
 
 

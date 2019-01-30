@@ -141,20 +141,24 @@ void ParticlesFunctional<T>::UpdateVelocity(std::vector<T>& velocity,
 
 template <typename T>
 void ParticlesFunctional<T>::UpdateVelocitiesSequential() noexcept {
-  const auto r1s = util::uniform_unit_vec<T>(n_particles_);
-  const auto r2s = util::uniform_unit_vec<T>(n_particles_);
+  //const auto r1s = util::uniform_unit_vec<T>(n_particles_);
+  // const auto r2s = util::uniform_unit_vec<T>(n_particles_);
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
-    UpdateVelocity(velocities_[i], best_positions_[i], positions_[i], r1s[i], r2s[i]);
+    const auto r1 = util::uniform_unit<T>();
+    const auto r2 = util::uniform_unit<T>();
+    UpdateVelocity(velocities_[i], best_positions_[i], positions_[i], r1, r2);
   }
 }
 
 template <typename T>
 void ParticlesFunctional<T>::UpdateVelocitiesParallel() noexcept {
-  const auto r1s = util::uniform_unit_vec<T>(n_particles_);
-  const auto r2s = util::uniform_unit_vec<T>(n_particles_);
+  // const auto r1s = util::uniform_unit_vec<T>(n_particles_);
+  // const auto r2s = util::uniform_unit_vec<T>(n_particles_);
 #pragma omp parallel for
   for (std::size_t i = 0; i < velocities_.size(); ++i) {
-    UpdateVelocity(velocities_[i], best_positions_[i], positions_[i], r1s[i], r2s[i]);
+    const auto r1 = util::uniform_unit<T>();
+    const auto r2 = util::uniform_unit<T>();
+    UpdateVelocity(velocities_[i], best_positions_[i], positions_[i], r1, r2);
   }
 }
 
