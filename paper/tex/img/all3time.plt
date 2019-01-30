@@ -1,4 +1,4 @@
-set terminal postscript eps enhanced color
+set terminal postscript eps enhanced color font "Helvetica,20"
 set output "./output/all3time.eps"
 set style data histogram
 set style fill solid

@@ -1,4 +1,4 @@
-set terminal postscript eps enhanced color
+set terminal postscript eps enhanced color font "Helvetica,24"
 set output "./output/baseline.eps"
 set style data histogram
 set style fill solid

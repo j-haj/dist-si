@@ -1,4 +1,4 @@
-set terminal postscript eps enhanced color
+set terminal postscript eps enhanced color font "Helvetica,20"
 set output "./output/speedup_seq.eps"
 set ylabel "Speed-up"
 set xtics ("Ackley" 1, "Rastrigin" 2, "Quadratic" 3)

@@ -41,11 +41,11 @@ $O(n^2)$ messages for $n$ particles).
 
 The essence of our algorithm is as follows: we allow the system of particles to occasionally
 make irrational steps---steps that are in a direction other than that dictated by
-standard PSO---inexchange for greatly reduced critical section contention.
+standard PSO---in exchange for greatly reduced critical section contention.
 This is done by 
 allowing non-atomic reads of \texttt{gbest}. Using non-atomic reads and writes
-is particularlly interesting because it means the system might use values of
-\texttt{gbest} that are non-sensical. Although this is troubling from a
+is particularly interesting because it means the system might use values of
+\texttt{gbest} that are nonsensical. Although this is troubling from a
 correctness standpoint, the performance characteristics are quite
 impressive. Additionally, we batch the random weight generation rather than
 generating weights on a per update basis. This is a minor change to the
@@ -70,8 +70,8 @@ results in Section \ref{sec:results}. Finally, in Section
 
 \section{Related Work}\label{sec:prior}
 There is a large body of work studying the parallelization of PSO. This work can
-be broadly broken up into two categories: OpenMP/MPI based methodoligies and
-GPGPU based methodoligies (typically via CUDA). OpenMP is a set of pragmas used
+be broadly broken up into two categories: OpenMP/MPI based methodologies and
+GPGPU based methodologies (typically via CUDA). OpenMP is a set of pragmas used
 with C/C++ or Fortran that automates much of the multi-threading process. MPI
 (Message Passing Interface) is an API for C and Fortran (among others) that
 allows communication between independent processes. Within the OpenMP and MPI
@@ -98,13 +98,13 @@ low-dimensional and orthogonal subspaces of the initial search space. However,
 the gain from reducing the dimensionality is partially offset by fitness
 evaluation, which requires communication across all swarms. Due to the high
 communication cost of the fitness function evaluation, this approach does not
-scale well to large sytstems. Chang et al. \cite{ppso} note that when a fitness
+scale well to large systems. Chang et al. \cite{ppso} note that when a fitness
 function can be optimized independently across its dimensions the sub-swarms can
 work independently with minimal communication. When this isn't the case, they
 propose a semi-synchronized algorithm that updates \texttt{gbest} across all
 threads every fixed number of steps. Peng et al. \cite{multicore-pso} also
 investigate the sub-swarm approach to
-parallelization but explore several different swarm communication topoligies and
+parallelization but explore several different swarm communication topologies and
 use Java threading rather than OpenMP and MPI.
 
 Sub-swarm approaches work well for problems with a relatively inexpensive
@@ -114,7 +114,7 @@ fitness function evaluation in parallel can offer improvement. The parallel
 fitness function architecture \cite{pgpso, ppso-fd} uses a coordinator process
 to handle the PSO update and sends particle data to worker processes that
 evaluate the fitness function for the given particle. These worker processes are
-frequently multi-threaded via OpenMp.
+frequently multi-threaded via OpenMP.
 This works well for a small number of particles, but communication
 overhead will quickly dominate large systems of particles. In the case of large
 systems of particles, it may be more efficient to utilize a sub-swarm approach.
@@ -137,7 +137,7 @@ based on a shared queue of particles.
 Another common approach to parallelizing PSO is via GPGPU programming
 \cite{gpu-ppso, gpu-pso, biopsogpu}. GPU-based
 algorithms primarily use the GPU for fitness function evaluation, although
-some are able to perform the entirety of the PSO aglorithm on the GPU
+some are able to perform the entirety of the PSO algorithm on the GPU
 \cite{swarmgrid, multiswarmpso-gpu}.
 % The
 % challenge with GPGPU programming is two-fold: minimizing communication between
@@ -196,8 +196,11 @@ $\textbf{pbest}$ as the position corresponding to the best seen fitness value
 for a given particle (i.e., the local best), $\textbf{gbest}$ as the position
 corresponding to the the best seen fitness value globally, and $\textbf{p}$ as
 the current position of the given particle. The update formula for velocity is
-given by \eqref{eq:velocity} and Table \ref{tab:constants} describes
-the interpretation of the constants.
+given by \eqref{eq:velocity}, where $\omega$ represents particle momentum,
+$c_1$ and $c_2$ represent preference to explore locally and globally,
+respectively, and $r_1$ and $r_2$ are random weight sampled from $U(0, 1)$.
+
+%and Table \ref{tab:constants} describes the interpretation of the constants.
 
 \begin{equation}\label{eq:velocity}
 \begin{aligned}
@@ -209,7 +212,7 @@ the interpretation of the constants.
 \end{aligned}
 \end{equation}
 
-Where $\odot$ is the Haddamard product.
+Where $\odot$ is the Hadamard product.
 Once the velocity is computed, the position update is given by
 \eqref{eq:position}.
 
@@ -217,17 +220,17 @@ Once the velocity is computed, the position update is given by
   \textbf{p}_i(t+1) = \textbf{p}_i(t) + \textbf{v}_i(t)
 \end{equation}
 
-\begin{table}
-  \caption{Description of the velocity update constants.}\label{tab:constants}
-  \begin{tabular}{ll}\toprule
-  \textbf{Constant} & \textbf{Description}\\\midrule
-  $\omega$ & Momentum\\
-  $c_1$ & Explore towards local best\\
-  $c_2$ & Explore towards global best\\
-  $r_1$ and $r_2$ & Sampled from $U(0,1)$\\\bottomrule
-  \end{tabular}
-\end{table}
-
+% \begin{table}
+%   \caption{Description of the velocity update constants.}\label{tab:constants}
+%   \begin{tabular}{ll}\toprule
+%   \textbf{Constant} & \textbf{Description}\\\midrule
+%   $\omega$ & Momentum\\
+%   $c_1$ & Explore towards local best\\
+%   $c_2$ & Explore towards global best\\
+%   $r_1$ and $r_2$ & Sampled from $U(0,1)$\\\bottomrule
+%   \end{tabular}
+% \end{table}
+% 
 Algorithm \ref{alg:pso} describes the basic PSO algorithm.
 
 \begin{algorithm}
@@ -247,13 +250,13 @@ Algorithm \ref{alg:pso} describes the basic PSO algorithm.
 \end{algorithm}
 
 Particles are initialized randomly within the bounds of the search space
-$[\texttt{x\_min}, \texttt{x\_max}]$. Particle intialization is an important
+$[\texttt{x\_min}, \texttt{x\_max}]$. Particle initialization is an important
 step -- if the global optimum is far outside the initialization domain, the
 algorithm may not converge to the global optimum.
 Some implementations also set a random
 initial velocity for each particle; however, we found it simpler and equally
 effective to initialize all particles with zero velocity. In our initial
-experiements, we found improved convergence by reflecting particles off the
+experiments, we found improved convergence by reflecting particles off the
 boundary of a predefined search space using $[x_{\min}, x_{\max}]$. The
 reflection was performed by negating the velocity component and offsetting the
 particle from the boundary by the amount it would have exceeded the boundary.
@@ -290,7 +293,7 @@ is a very common technique in the video game industry, which is known for
 writing performant code.
 Data-oriented design
 differs from object-oriented design in that data is grouped based on access
-paterns rather than logical patterns.
+patterns rather than logical patterns.
 
 \begin{figure}
   \lstinputlisting{../code/particle.cpp}
@@ -478,10 +481,10 @@ miss the critical section and move on. In the event the first check passes, the
 particle then hits the critical section. We experimentally demonstrate that this
 reduced critical section contention produces a substantial speed-up.
 
-Although we are able to avoid ctirical section contention for a number of the
+Although we are able to avoid critical section contention for a number of the
 particles, the careful reader will note we have not protected against reads
 during a write to \texttt{gbest} (i.e., the writes are not atomic).
-This relaxed consistency guarnatee has two primary
+This relaxed consistency guarantee has two primary
 consequences. First, some particles may use an incorrect \texttt{gbest} when
 computing the velocity update -- this can occur if they read \texttt{gbest}
 while another thread is updating \texttt{gbest}. Second, some particles that are
@@ -571,23 +574,22 @@ Rastrigin and Ackley functions are shown in Figures \ref{fig:rastrigin} and
 \ref{fig:ackley}, respectively.
 All experiments were run on a single
 workstation with a 6-core, 3.6 GHz Intel i7-6800K processor and 64GB of RAM. We
-used six threads in OpenMP, rather than 12 hyperthreads, to reduce context switching.
-Table \ref{tab:param}
-gives the hyperparameters used in the experiements, which were chosen based on
-the recommended values from \cite{pso-convergence, spso}.
+used six threads in OpenMP, rather than 12 hyper-threads, to reduce context switching.
+We set the hyper-parameters based on the values recommended in
+\cite{pso-convergence, spso}.
 
-\begin{table}
-  \centering
-  \caption{Hyperparamters used in the experiements.}\label{tab:param}
-  \begin{tabular}{lc}\toprule
-    \textbf{Parameter} & \textbf{Value}\\\midrule
-    $c_1$ & $2.05 \chi$\\
-    $c_2$ & $2.05 \chi$\\
-    $\omega$ & $\chi$\\
-    $\chi$ & $\frac{2}{2.1 + \sqrt{.41}}$\\\bottomrule
-    \end{tabular}
-\end{table}
-
+% \begin{table}
+%   \centering
+%   \caption{Hyperparamters used in the experiements.}\label{tab:param}
+%   \begin{tabular}{lc}\toprule
+%     \textbf{Parameter} & \textbf{Value}\\\midrule
+%     $c_1$ & $2.05 \chi$\\
+%     $c_2$ & $2.05 \chi$\\
+%     $\omega$ & $\chi$\\
+%     $\chi$ & $\frac{2}{2.1 + \sqrt{.41}}$\\\bottomrule
+%     \end{tabular}
+% \end{table}
+% 
 Bratton et al. \cite{spso} mention that particles should be initialized away
 from the target global optimum to prevent unintentional bias as a result of
 particles being initialized close to the optimum. We initialize our particles
@@ -623,13 +625,13 @@ in the outer quarter of the space
 
 Figure \ref{fig:seq-baseline} shows the sequential speed-up ith respect to the
 AoS design for 500 particles of dimension 75. The SoA architecture as proposed
-in \cite{cache-pso} performs well and shows improved runtimes for all three test
+in \cite{cache-pso} performs well and shows improved run-times for all three test
 functions. SoA-fast's improvement over SoA is strictly due to the
 batching of the random weight generation since these numbers are based on the
 sequential versions of the algorithms. Of the three test functions, the
 quadratic has the fewest instructions, which means it has the fastest evaluation
 time. A side-effect of this is that the SoA-fast architecture sees an
-increased speed-up because the PSO algorithm spends a greater porition of its
+increased speed-up because the PSO algorithm spends a greater portion of its
 time in the particle iteration and random number generation parts of the
 algorithm and less time evaluating the fitness function.
 
@@ -767,7 +769,7 @@ In this work we present two optimizations for the performance of both the
 standard and parallel version of the PSO algorithm. We introduce
 specific guidance on how and where to generate the random weights in
 PSO, which, as we demonstrated, results in substantial performance gains. 
-The reduced consistency guarnatee of SoA-fast results in around a 10\% performance
+The reduced consistency guarantee of SoA-fast results in around a 10\% performance
 gain over the standard SoA architecture. This gain comes at a cost -- SoA-fast
 requires more steps (despite a short wall clock time) to achieve a suitable
 convergence threshold when compared to SoA. For a small enough convergence

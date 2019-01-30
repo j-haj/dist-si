@@ -1,7 +1,7 @@
 epsilon 1e-5
 quadratic - parallel
 
-Number of particles: 100000
+Number of particles: 100,000
 Dimension: 100
 Function:
 AoS
@@ -17,7 +17,7 @@ SoAf
 	fitness: 9.80858e-06 +/- 1.30485e-07
 	steps: 314.05 +/- 11.967
 
-Number of particles: 10000
+Number of particles: 10,000
 Dimension: 100
 Function:
 AoS
@@ -33,7 +33,7 @@ SoAf
 	fitness: 9.96894e-06 +/- 4.18998e-08
 	steps: 1148.05 +/- 120.371
 
-Number of particles: 1000
+Number of particles: 1,000
 Dimension: 100
 Function:
 AoS
@@ -64,6 +64,22 @@ SoAf
 	time (s): 0.287229 +/- 0.197787
 	fitness: 9.97895e-06 +/- 2.94368e-08
 	steps: 2283.25 +/- 1572.95
+
+Number of particles: 1000
+Dimension: 25
+Function:
+AoS
+	time (s): 0.0603337 +/- 0.0139461
+	fitness: 9.68781e-06 +/- 3.10682e-07
+	steps: 215.2 +/- 12.3825
+SoA
+	time (s): 0.0478481 +/- 0.00575187
+	fitness: 9.4795e-06 +/- 3.85609e-07
+	steps: 228.5 +/- 14.7951
+SoAf
+	time (s): 0.0280146 +/- 0.00283935
+	fitness: 9.74912e-06 +/- 2.69466e-07
+	steps: 223.3 +/- 15.9839
 
 epsilon 1e-6
 Number of particles: 1000
@@ -98,3 +114,20 @@ SoAf
 	fitness: 9.95596e-07 +/- 1.04426e-08
 	steps: 22644.2 +/- 22229.3
 
+TODO: Dimension 25
+
+Number of particles: 1000
+Dimension: 25
+Function:
+AoS
+	time (s): 0.0672191 +/- 0.0145922
+	fitness: 9.53709e-07 +/- 3.80441e-08
+	steps: 266.25 +/- 20.183
+SoA
+	time (s): 0.0510886 +/- 0.00852544
+	fitness: 9.65463e-07 +/- 3.47787e-08
+	steps: 265.75 +/- 19.8465
+SoAf
+	time (s): 0.0338022 +/- 0.00243275
+	fitness: 9.56739e-07 +/- 2.58094e-08
+	steps: 271.35 +/- 18.2476
