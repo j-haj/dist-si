@@ -59,7 +59,7 @@ rely on a shared global state (the globally best particle). The difficulty of
 maintaining this global state can be seen in the large body of work studying the
 parallelization of PSO -- almost uniformly these algorithms rely on a global
 synchronization step, which can result in idle cores and reduced parallel
-efficiency. In this work, we introduce two techniques for implementing a fast,
+efficiency. In this work, we explore two techniques for implementing a fast,
 cache-aware parallel PSO algorithm: batching the creation of the random weights
 and reducing critical section contention via a relaxed consistency guarantee.
 Our technique shows impressive performance improvements over prior work, seeing
